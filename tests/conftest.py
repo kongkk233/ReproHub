@@ -13,7 +13,9 @@ from reprohub.settings import reset_settings
 @pytest.fixture()
 def settings(tmp_path, monkeypatch):
     monkeypatch.setenv("REPROHUB_DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setenv("REPROHUB_NO_DOTENV", "1")
+    for k in ("DEEPSEEK_API_KEY", "OPUS_API_KEY", "X666_API_KEY", "QWEN_API_KEY", "ZHIPU_API_KEY", "MOONSHOT_API_KEY", "OPENAI_API_KEY", "LLM_MODEL", "LLM_EFFORT"):
+        monkeypatch.delenv(k, raising=False)
     monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
     monkeypatch.delenv("INGEST_TOKEN", raising=False)
     monkeypatch.setenv("LLM_PROVIDER", "deepseek")

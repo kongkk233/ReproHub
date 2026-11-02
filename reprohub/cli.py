@@ -9,7 +9,7 @@ import sys
 
 from . import __version__, repo
 from .db import get_conn
-from .llm import LLM, LLMError, llm_status
+from .llm import EFFORT_LEVELS, LLM, LLMError, build_provider, clear_overrides, llm_status, load_overrides, provider_catalog, set_overrides, set_process_overrides, test_llm
 from .settings import ROOT, get_settings
 
 
@@ -20,9 +20,13 @@ def _print(msg: str) -> None:
 def _banner(settings) -> None:
     from .pipeline.runner import mock_banner
 
-    b = mock_banner(settings)
+    conn = get_conn(settings)
+    b = mock_banner(settings, conn)
     if b:
         _print(b)
+    st = llm_status(settings, conn)
+    if st.get("mode") == "live":
+        _print(f"LLM：{st.get('label')} / {st.get('model')} · 强度 {st.get('effort') or '不适用'}")
 
 
 def cmd_init(args, settings):
@@ -39,9 +43,9 @@ def cmd_init(args, settings):
 
 def cmd_status(args, settings):
     conn = get_conn(settings)
-    st = llm_status(settings)
+    st = llm_status(settings, conn)
     _print(f"ReproHub v{__version__}")
-    _print(f"LLM：{st['mode']}  provider={st.get('key') or st.get('provider')} model={st.get('model')}" + (f"  原因：{st.get('reason')}" if st.get("reason") else ""))
+    _print(f"LLM：{st['mode']}  provider={st.get('key') or st.get('provider')} model={st.get('model')} effort={st.get('effort')}" + (f"  原因：{st.get('reason')}" if st.get("reason") else ""))
     c = repo.counts(conn)
     _print(f"条目 {c['items']}（待评分 {c['new']}，已评分 {c['scored']}，入选 {c['selected']}，已过滤 {c['rejected']}，模拟评分 {c['mock_scored']}）")
     _print(f"解读 {c['interpretations']} · 事件 {c['stories']} · 版次 {c['editions']} · 未读精选 {c['unread_selected']}")
@@ -156,6 +160,52 @@ def cmd_demo_seed(args, settings):
     _print(f"已写入 {n} 条演示样例（来源 demo）。接着运行 `reprohub pipeline --no-collect` 完成评分/解读/日报。")
 
 
+def cmd_llm(args, settings):
+    conn = get_conn(settings)
+    sub = args.llm_cmd
+    if sub == "status":
+        st = llm_status(settings, conn)
+        _print(f"全局：{st['mode']}  {st.get('key') or st.get('provider')} / {st.get('model')}  强度 {st.get('effort')}  来源 {st.get('sources')}")
+        if st.get("overrides"):
+            _print(f"运行时覆盖：{st['overrides']}")
+        _print("各步骤：")
+        for step, v in st.get("steps", {}).items():
+            flag = "mock" if v.get("is_mock") else ("ERR " + v["error"] if v.get("error") else "live")
+            _print(f"  {step:<10} {v.get('provider'):<10} {str(v.get('model')):<24} 强度 {str(v.get('effort')):<7} [{flag}]")
+        _print("提供商：")
+        for p in st.get("providers", []):
+            _print(f"  {'✓' if p['configured'] else '·'} {p['key']:<10} {p['label']:<28} 默认 {p['model'] or '-':<22} 强度 {p['effort_style']:<7} 已知模型 {len(p['models'])}")
+    elif sub == "test":
+        targets = []
+        if args.all:
+            targets = [(p["key"], None) for p in provider_catalog(settings) if p["configured"] and p["key"] != "mock"]
+        else:
+            targets = [(args.provider, args.model)]
+        for prov, model in targets:
+            r = test_llm(settings, conn, provider=prov, model=model, effort=args.effort, prompt=args.prompt)
+            if r.get("ok"):
+                tag = "模拟" if r.get("is_mock") else "真实"
+                _print(f"✓ [{tag}] {r['provider']}/{r['model']} 强度={r.get('effort')} {r['latency_ms']} ms  tokens in/out/reasoning = {r.get('prompt_tokens')}/{r.get('completion_tokens')}/{r.get('reasoning_tokens')}")
+                _print(f"    请求附加字段：{r.get('request_extra')}")
+                _print(f"    回复：{r['content'][:160]!r}")
+            else:
+                _print(f"✗ {r.get('provider')}/{r.get('model')} 强度={r.get('effort')}：{r.get('error')}")
+    elif sub == "set":
+        cur = set_overrides(conn, provider=args.provider, model=args.model, effort=args.effort)
+        _print(f"运行时覆盖已保存：{cur}（优先于 models.yaml 与环境变量；`reprohub llm clear` 清除）")
+        cmd_llm(argparse.Namespace(llm_cmd="status"), settings)
+    elif sub == "clear":
+        clear_overrides(conn)
+        _print("运行时覆盖已清除")
+    elif sub == "models":
+        key = args.provider or llm_status(settings, conn).get("key")
+        p = build_provider(settings, key)
+        live = p.list_models() if hasattr(p, "list_models") else []
+        known = next((x["models"] for x in provider_catalog(settings) if x["key"] == key), [])
+        _print(f"{key} 配置中已知：{', '.join(known) or '-'}")
+        _print(f"{key} 端点返回：{', '.join(live) or '（不可用或为模拟）'}")
+
+
 def cmd_sources(args, settings):
     conn = get_conn(settings)
     repo.sync_sources(conn, settings)
@@ -173,6 +223,9 @@ def cmd_export(args, settings):
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="reprohub", description="生殖医学 · 辅助生殖 · 胚胎多组学 文献聚合、解读、阅读管理与推送")
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("--provider", help="本次运行临时使用的提供商（deepseek / opus / x666 / … / mock）")
+    p.add_argument("--model", help="本次运行临时使用的模型，可写 provider/model")
+    p.add_argument("--effort", choices=list(EFFORT_LEVELS), help="本次运行的思考强度")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init", help="初始化 .env / 数据库").set_defaults(fn=cmd_init)
@@ -222,6 +275,19 @@ def build_parser() -> argparse.ArgumentParser:
     c.set_defaults(fn=cmd_serve)
 
     sub.add_parser("run-forever", help="只跑调度（配合 cron/systemd）").set_defaults(fn=cmd_run_forever)
+
+    c = sub.add_parser("llm", help="查看/测试/切换 LLM 提供商、模型与思考强度")
+    ls = c.add_subparsers(dest="llm_cmd", required=True)
+    ls.add_parser("status", help="解析结果：全局与各步骤用什么")
+    t = ls.add_parser("test", help="真实调用一次并报告延迟/tokens/推理 tokens")
+    t.add_argument("--provider"); t.add_argument("--model"); t.add_argument("--effort", choices=list(EFFORT_LEVELS)); t.add_argument("--prompt")
+    t.add_argument("--all", action="store_true", help="测试所有已配置 key 的提供商")
+    st = ls.add_parser("set", help="保存运行时覆盖（优先于 models.yaml 与环境变量）")
+    st.add_argument("--provider"); st.add_argument("--model"); st.add_argument("--effort", choices=list(EFFORT_LEVELS))
+    ls.add_parser("clear", help="清除运行时覆盖")
+    m = ls.add_parser("models", help="列出提供商的已知模型与端点返回的模型")
+    m.add_argument("--provider")
+    c.set_defaults(fn=cmd_llm)
     sub.add_parser("demo-seed", help="写入离线演示样例").set_defaults(fn=cmd_demo_seed)
     sub.add_parser("sources", help="列出来源状态").set_defaults(fn=cmd_sources)
     sub.add_parser("export-reading", help="导出阅读记录 JSON").set_defaults(fn=cmd_export)
@@ -232,6 +298,9 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     settings = get_settings()
+    if getattr(args, "provider", None) or getattr(args, "model", None) or getattr(args, "effort", None):
+        if args.cmd != "llm" or args.llm_cmd not in ("test", "set", "models"):
+            set_process_overrides(provider=args.provider, model=args.model, effort=args.effort)
     args.fn(args, settings)
 
 

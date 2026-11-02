@@ -18,7 +18,7 @@
   <div class="meta" style="margin-top:8px">
     {% if it.final_score is not none %}
       <span class="badge score {% if it.final_score < 60 %}low{% endif %}">综合 {{ it.final_score }}</span>
-      {% if it.llm_is_mock %}<span class="badge mock">模拟评分 · 未调用模型</span>{% else %}<span class="muted">模型 {{ it.llm_score }} · {{ it.llm_provider }}/{{ it.llm_model }}</span>{% endif %}
+      {% if it.llm_is_mock %}<span class="badge mock">模拟评分 · 未调用模型</span>{% else %}<span class="muted">模型 {{ it.llm_score }} · {{ it.llm_provider }}/{{ it.llm_model }}{% if it.llm_effort %} · 强度 {{ it.llm_effort }}{% endif %}</span>{% endif %}
       {% if it.selected %}<span class="badge">已入选</span>{% else %}<span class="badge">未入选（阈值 {{ it.extra.threshold }}）</span>{% endif %}
     {% elif it.status == 'new' %}<span class="badge">待评分</span>
     {% elif it.status == 'rejected' %}<span class="badge">已过滤：{{ it.reject_reason }}</span>
@@ -73,7 +73,7 @@
   </h2>
   {% if interp %}
     <div class="meta">
-      {% if interp.is_mock %}<span class="badge mock">模拟解读 · 未调用模型</span>{% else %}由 {{ interp.provider }} / {{ interp.model }} 生成{% endif %}
+      {% if interp.is_mock %}<span class="badge mock">模拟解读 · 未调用模型</span>{% else %}由 {{ interp.provider }} / {{ interp.model }}{% if interp.effort %}（强度 {{ interp.effort }}）{% endif %} 生成{% endif %}
       · {{ fmt_dt(interp.created_at, "%Y-%m-%d %H:%M") }}
       {% if interp.content.reading_time_min %}· 约 {{ interp.content.reading_time_min }} 分钟{% endif %}
     </div>

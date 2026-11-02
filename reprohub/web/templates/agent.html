@@ -31,6 +31,10 @@ POST {{ base }}/api/v1/items/{id}/interpret  # 生成/重做解读
 POST {{ base }}/api/v1/collections           {"name":"课题A"}
 POST {{ base }}/api/v1/collections/{cid}/items/{id}
 POST {{ base }}/api/v1/admin/run             {"collect":true,"process":true,"force":false}
+GET  {{ base }}/api/v1/llm                   # 当前提供商/模型/强度解析结果与可用提供商
+POST {{ base }}/api/v1/llm/override          {"provider":"x666","model":"grok-4.7","effort":"high"}   # 运行时切换
+DELETE {{ base }}/api/v1/llm/override        # 清除覆盖
+POST {{ base }}/api/v1/llm/test              {"provider":"deepseek","effort":"off"}                # 真实试调一次
 # 非本机访问请带请求头 X-Admin-Token: &lt;ADMIN_PASSWORD&gt;</code></pre>
 
 <h3>推送入库（你自己的脚本 → 本站）</h3>

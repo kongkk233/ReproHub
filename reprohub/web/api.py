@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from .. import __version__, repo
 from ..db import get_conn
-from ..llm import LLM, LLMError, llm_status
+from ..llm import EFFORT_LEVELS, LLM, LLMError, clear_overrides, llm_status, set_overrides, test_llm
 from ..pipeline.classify import Classifier
 from ..pipeline.collect import ingest_item
 from ..pipeline.interpret import interpret_item
@@ -45,7 +45,7 @@ def _public_item(it: dict, *, full: bool = False) -> dict:
 def status(request: Request):
     settings = _s(request)
     conn = get_conn(settings)
-    st = llm_status(settings)
+    st = llm_status(settings, conn)
     return {
         "name": settings.site_info.get("name"),
         "version": __version__,
@@ -280,6 +280,44 @@ def ingest(request: Request, items: list[IngestItem]):
             continue
         results.append({"url": it.url, "status": st, "id": iid})
     return {"results": results, "note": "新条目状态为 new，需运行 process（或等待调度）完成评分"}
+
+
+# ---------------------------------------------------------------- llm 切换
+class LLMOverride(BaseModel):
+    provider: str | None = None
+    model: str | None = None          # 可写 provider/model
+    effort: str | None = Field(None, pattern="^(off|low|medium|high|)$")
+    replace: bool = False
+
+
+@router.get("/llm")
+def llm_get(request: Request):
+    """当前解析结果：全局、各步骤、提供商目录、运行时覆盖。"""
+    settings = _s(request)
+    return llm_status(settings, get_conn(settings))
+
+
+@router.post("/llm/override")
+def llm_override(request: Request, body: LLMOverride, _=Depends(require_owner)):
+    settings = _s(request)
+    conn = get_conn(settings)
+    cur = set_overrides(conn, provider=body.provider, model=body.model, effort=body.effort, replace=body.replace)
+    return {"overrides": cur, "status": llm_status(settings, conn)}
+
+
+@router.delete("/llm/override")
+def llm_override_clear(request: Request, _=Depends(require_owner)):
+    settings = _s(request)
+    conn = get_conn(settings)
+    clear_overrides(conn)
+    return {"overrides": {}, "status": llm_status(settings, conn)}
+
+
+@router.post("/llm/test")
+def llm_test(request: Request, body: LLMOverride, _=Depends(require_owner)):
+    """真实调用一次（不保存覆盖），返回延迟 / tokens / 推理 tokens。"""
+    settings = _s(request)
+    return test_llm(settings, get_conn(settings), provider=body.provider, model=body.model, effort=body.effort or None)
 
 
 # ---------------------------------------------------------------- admin

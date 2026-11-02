@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 
 from .. import repo
 from ..db import get_conn
-from ..llm import LLM, LLMError, llm_status
+from ..llm import EFFORT_LEVELS, LLM, LLMError, clear_overrides, llm_status, set_overrides, test_llm
 from ..pipeline.cluster import cluster_recent
 from ..pipeline.collect import collect
 from ..pipeline.editions import build_daily, build_monthly, build_weekly
@@ -168,7 +168,7 @@ def item_page(request: Request, item_id: int):
     colls = repo.list_collections(conn)
     in_colls = set(repo.item_collections(conn, item_id))
     reading = repo.get_reading(conn, item_id)
-    st = llm_status(settings)
+    st = llm_status(settings, conn)
     return _render(request, "item.html", title=it.get("title_zh") or it["title"], it=it, interp=interp, story=story, related=related, mentions=[dict(m) for m in mentions], collections=colls, in_collections=in_colls, reading=reading, llm=st)
 
 
@@ -352,7 +352,7 @@ def collection_delete(request: Request, cid: int, _=Depends(require_owner)):
 def about(request: Request):
     settings = _s(request)
     conn = get_conn(settings)
-    return _render(request, "about.html", title="关于", counts=repo.counts(conn), llm=llm_status(settings), sources=repo.list_sources(conn), preferences=settings.preferences.get("rules") or [], selection=settings.selection)
+    return _render(request, "about.html", title="关于", counts=repo.counts(conn), llm=llm_status(settings, conn), sources=repo.list_sources(conn), preferences=settings.preferences.get("rules") or [], selection=settings.selection)
 
 
 @router.get("/agent", response_class=HTMLResponse)
@@ -420,10 +420,34 @@ def admin(request: Request):
     conn = get_conn(settings)
     return _render(
         request, "admin.html", title="后台",
-        counts=repo.counts(conn), llm=llm_status(settings), banner=mock_banner(settings), sources=repo.source_stats(conn),
+        counts=repo.counts(conn), llm=llm_status(settings, conn), banner=mock_banner(settings, conn), sources=repo.source_stats(conn), effort_levels=list(EFFORT_LEVELS),
+        llm_test_result=request.query_params.get("llm_test"),
         runs=repo.recent_runs(conn, 15), pushes=repo.recent_pushes(conn, 30), channels=channel_status(settings), llm_stats=repo.llm_stats(conn),
         rules=settings.push.get("rules") or [], message=request.query_params.get("msg"),
     )
+
+
+@router.post("/admin/llm")
+def admin_llm(request: Request, action: str = Form(...), provider: str = Form(""), model: str = Form(""), effort: str = Form(""), _=Depends(require_owner)):
+    """后台表单：切换 / 测试 / 清除 LLM 提供商、模型与思考强度。"""
+    from urllib.parse import quote
+
+    settings = _s(request)
+    conn = get_conn(settings)
+    if action == "set":
+        cur = set_overrides(conn, provider=provider, model=model, effort=effort, replace=True)
+        msg = f"运行时覆盖已保存：{cur or '（空，使用配置默认）'}"
+    elif action == "clear":
+        clear_overrides(conn)
+        msg = "已清除运行时覆盖"
+    else:
+        r = test_llm(settings, conn, provider=provider or None, model=model or None, effort=effort or None)
+        if r.get("ok"):
+            msg = (f"{'模拟' if r.get('is_mock') else '真实'}调用 {r['provider']}/{r['model']} 强度={r.get('effort')}：{r['latency_ms']} ms，"
+                   f"tokens in/out/reasoning={r.get('prompt_tokens')}/{r.get('completion_tokens')}/{r.get('reasoning_tokens')}，附加字段 {r.get('request_extra')}\n回复：{r['content'][:200]}")
+        else:
+            msg = f"✗ {r.get('provider')}/{r.get('model')}：{r.get('error')}"
+    return RedirectResponse("/admin?msg=" + quote(msg[-1500:]) + "#llm", status_code=303)
 
 
 @router.post("/admin/run")
@@ -456,6 +480,9 @@ def admin_run(request: Request, action: str = Form(...), key: str = Form(""), _=
         elif action == "push-test":
             r = test_channel(settings, conn, key)
             msgs.append(f"推送测试 {key}: {r}")
+        elif action == "llm-clear":
+            clear_overrides(conn)
+            msgs.append("已清除 LLM 运行时覆盖，回到 models.yaml / 环境变量的设置")
         else:
             msgs.append(f"未知操作 {action}")
     except Exception as e:  # noqa: BLE001

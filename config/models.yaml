@@ -1,9 +1,10 @@
-# 每个流水线步骤可单独指定提供商与模型（类似 AIHOT 的 site/models.ts）。
-# provider 留空 => 使用 LLM_PROVIDER / site.yaml.llm.default_provider；
-# model 留空 => 使用该提供商的默认模型。
+# 每个流水线步骤可单独指定提供商 / 模型 / 思考强度（类似 AIHOT 的 site/models.ts）。
+# 留空 => 退回全局默认（环境变量 LLM_PROVIDER / LLM_MODEL / LLM_EFFORT，或运行时 `reprohub llm set` 的覆盖）。
+# model 可写 "provider/model" 简写，如 model: x666/grok-4.7 等价于 provider: x666 + model: grok-4.7。
+# effort: "off" | low | medium | high（off 必须加引号，否则 YAML 会解析成 false）。便宜的判别步骤用 off/low，解读与总述用 medium/high。
 steps:
-  prescreen:  { provider: "", model: "", temperature: 0.0 }
-  score:      { provider: "", model: "", temperature: 0.2 }
-  interpret:  { provider: "", model: "", temperature: 0.3, max_tokens: 2000 }
-  cluster:    { provider: "", model: "", temperature: 0.0 }
-  digest:     { provider: "", model: "", temperature: 0.4, max_tokens: 1500 }
+  prescreen:  { provider: "", model: "", effort: "off",    temperature: 0.0 }
+  score:      { provider: "", model: "", effort: low,    temperature: 0.2 }
+  interpret:  { provider: "", model: "", effort: medium, temperature: 0.3, max_tokens: 8000 }
+  cluster:    { provider: "", model: "", effort: "off",    temperature: 0.0 }
+  digest:     { provider: "", model: "", effort: medium, temperature: 0.4, max_tokens: 6000 }

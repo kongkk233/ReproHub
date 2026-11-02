@@ -2,7 +2,7 @@
 {% block content %}
 <h1>{{ ed.title }}</h1>
 <div class="meta">{{ EDITION_LABEL.get(ed.kind) }} · {{ ed.item_count }} 条 · 生成于 {{ fmt_dt(ed.created_at, "%Y-%m-%d %H:%M") }}
-  · {% if ed.kind == 'daily' %}规则编纂{% elif ed.is_mock %}<span class="badge mock">总述为模拟模式占位，未调用模型</span>{% else %}总述由 {{ ed.provider }} / {{ ed.model }} 撰写{% endif %}
+  · {% if ed.kind == 'daily' %}规则编纂{% elif ed.is_mock %}<span class="badge mock">总述为模拟模式占位，未调用模型</span>{% else %}总述由 {{ ed.provider }} / {{ ed.model }}{% if ed.effort %}（强度 {{ ed.effort }}）{% endif %} 撰写{% endif %}
   · <a href="/editions/{{ ed.kind }}/{{ ed.date_key }}.md">Markdown</a> · <a href="/api/v1/editions/{{ ed.kind }}/{{ ed.date_key }}">JSON</a>
   {% if ed.content.label %}· 窗口 {{ ed.content.label }}{% endif %}</div>
 {% if ed.overview %}<div class="box">{{ md(ed.overview) }}</div>{% endif %}

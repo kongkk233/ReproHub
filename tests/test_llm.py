@@ -31,14 +31,14 @@ def test_live_provider_when_key_present(settings, monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
     p = build_provider(settings, "deepseek")
     assert isinstance(p, OpenAICompatProvider)
-    assert p.is_mock is False and p.model == "deepseek-chat" and p.base_url == "https://api.deepseek.com"
+    assert p.is_mock is False and p.model == "deepseek-flash" and p.base_url == "https://api.deepseek.com"
 
 
 def test_per_step_model_override(settings, monkeypatch, tmp_path):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
     monkeypatch.setenv("LLM_PROVIDER", "deepseek")
     llm = LLM(settings)
-    assert llm.provider_for("score").model == "deepseek-chat"
+    assert llm.provider_for("score").model == "deepseek-flash"
 
 
 def test_lenient_json_parsing():

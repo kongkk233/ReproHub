@@ -188,7 +188,7 @@ def build_periodic(kind: str, settings: Settings, conn: sqlite3.Connection, llm:
     stats = _stats(items)
     kind_label = KIND_LABEL[kind]
     title = f"{settings.site_info.get('name_zh', 'ReproHub')} {kind_label} · {key}"
-    overview, leads, provider, model, is_mock = _rules_overview(stats, sections, f"{kind_label}（{label}）"), {}, "rules", None, False
+    overview, leads, provider, model, is_mock, effort = _rules_overview(stats, sections, f"{kind_label}（{label}）"), {}, "rules", None, False, None
     if sections:
         try:
             resp = llm.run(
@@ -202,12 +202,12 @@ def build_periodic(kind: str, settings: Settings, conn: sqlite3.Connection, llm:
             for s in data.get("sections") or []:
                 if s.get("topic") and s.get("lead"):
                     leads[s["topic"]] = str(s["lead"]).strip()
-            provider, model, is_mock = resp.provider, resp.model, resp.is_mock
+            provider, model, is_mock, effort = resp.provider, resp.model, resp.is_mock, resp.effort
         except LLMError as e:
             logger(f"  ✗ {kind_label}总述生成失败，退回规则总述：{e}")
     content = {"date_key": key, "window": {"start": start, "end": end}, "label": label, "stats": stats, "sections": sections, "leads": leads}
     md = render_markdown(settings, kind=kind, title=title, overview=overview, sections=sections, leads=leads, is_mock=is_mock, base_url=settings.site_info.get("base_url", ""))
-    eid = repo.save_edition(conn, kind=kind, date_key=key, title=title, overview=overview, content=content, markdown=md, provider=provider, model=model, is_mock=is_mock, item_count=stats["n"])
+    eid = repo.save_edition(conn, kind=kind, date_key=key, title=title, overview=overview, content=content, markdown=md, provider=provider, model=model, is_mock=is_mock, item_count=stats["n"], effort=effort)
     logger(f"[{kind_label}] {key}：{stats['n']} 条，{len(sections)} 个栏目{'（模拟总述）' if is_mock else ''}")
     return repo.get_edition_by_id(conn, eid)  # type: ignore[return-value]
 

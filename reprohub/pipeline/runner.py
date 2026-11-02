@@ -19,8 +19,8 @@ log = logging.getLogger("reprohub.runner")
 Logger = Callable[[str], None]
 
 
-def mock_banner(settings: Settings) -> str | None:
-    st = llm_status(settings)
+def mock_banner(settings: Settings, conn=None) -> str | None:
+    st = llm_status(settings, conn)
     if st.get("mode") == "mock":
         return f"⚠ LLM 模拟模式（{st.get('reason')}）：评分 / 解读 / 周报月报总述均为规则占位内容，未调用任何模型；界面与 API 会标注 is_mock。"
     if st.get("mode") == "error":
@@ -49,11 +49,13 @@ def run_pipeline(
         lines.append(msg)
         logger(msg)
 
-    banner = mock_banner(settings)
+    banner = mock_banner(settings, conn)
     if banner:
         _log(banner)
     llm = LLM(settings, conn)
-    summary: dict = {"llm": llm_status(settings).get("mode")}
+    st = llm_status(settings, conn)
+    _log(f"LLM：{st.get('mode')} {st.get('key')}/{st.get('model')} 强度={st.get('effort')}")
+    summary: dict = {"llm": st.get("mode"), "llm_provider": st.get("key"), "llm_model": st.get("model"), "llm_effort": st.get("effort")}
     status = "ok"
     try:
         if do_collect:

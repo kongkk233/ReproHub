@@ -17,6 +17,8 @@ _ENV_RE = re.compile(r"\$\{([A-Za-z0-9_]+)\}")
 
 def load_dotenv(path: Path | None = None) -> None:
     """极简 .env 读取：不覆盖已存在的环境变量。"""
+    if os.environ.get("REPROHUB_NO_DOTENV"):  # 测试时不读 .env
+        return
     p = path or ROOT / ".env"
     if not p.exists():
         return

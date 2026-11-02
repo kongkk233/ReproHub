@@ -269,7 +269,7 @@ def items_needing_interpretation(conn: sqlite3.Connection, min_score: float, kin
     q = ",".join("?" * len(kinds))
     rows = conn.execute(
         ITEM_SELECT + f""" WHERE i.selected=1 AND COALESCE(i.final_score,0)>=? AND i.kind IN ({q})
-                           AND NOT EXISTS (SELECT 1 FROM interpretations x WHERE x.item_id=i.id)
+                           AND NOT EXISTS (SELECT 1 FROM interpretations x WHERE x.item_id=i.id AND x.is_mock=0)
                            ORDER BY i.final_score DESC LIMIT ?""",
         [min_score, *kinds, limit],
     )
@@ -340,13 +340,13 @@ def get_interpretation(conn: sqlite3.Connection, item_id: int) -> dict | None:
     return d
 
 
-def save_interpretation(conn: sqlite3.Connection, item_id: int, content: dict, markdown: str, *, provider: str, model: str, is_mock: bool) -> None:
+def save_interpretation(conn: sqlite3.Connection, item_id: int, content: dict, markdown: str, *, provider: str, model: str, is_mock: bool, effort: str | None = None) -> None:
     conn.execute(
-        """INSERT INTO interpretations(item_id, content_json, markdown, provider, model, is_mock, created_at)
-           VALUES(?,?,?,?,?,?,?)
+        """INSERT INTO interpretations(item_id, content_json, markdown, provider, model, is_mock, effort, created_at)
+           VALUES(?,?,?,?,?,?,?,?)
            ON CONFLICT(item_id) DO UPDATE SET content_json=excluded.content_json, markdown=excluded.markdown,
-             provider=excluded.provider, model=excluded.model, is_mock=excluded.is_mock, created_at=excluded.created_at""",
-        (item_id, json.dumps(content, ensure_ascii=False), markdown, provider, model, 1 if is_mock else 0, now_iso()),
+             provider=excluded.provider, model=excluded.model, is_mock=excluded.is_mock, effort=excluded.effort, created_at=excluded.created_at""",
+        (item_id, json.dumps(content, ensure_ascii=False), markdown, provider, model, 1 if is_mock else 0, effort, now_iso()),
     )
 
 
@@ -398,14 +398,14 @@ def update_story(conn: sqlite3.Connection, story_id: int, **fields: Any) -> None
 
 # ============================================================ editions
 def save_edition(conn: sqlite3.Connection, *, kind: str, date_key: str, title: str, overview: str | None, content: dict, markdown: str,
-                 provider: str | None, model: str | None, is_mock: bool, item_count: int) -> int:
+                 provider: str | None, model: str | None, is_mock: bool, item_count: int, effort: str | None = None) -> int:
     conn.execute(
-        """INSERT INTO editions(kind, date_key, title, overview, content_json, markdown, provider, model, is_mock, item_count, created_at)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?)
+        """INSERT INTO editions(kind, date_key, title, overview, content_json, markdown, provider, model, is_mock, effort, item_count, created_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(kind, date_key) DO UPDATE SET title=excluded.title, overview=excluded.overview, content_json=excluded.content_json,
-             markdown=excluded.markdown, provider=excluded.provider, model=excluded.model, is_mock=excluded.is_mock,
+             markdown=excluded.markdown, provider=excluded.provider, model=excluded.model, is_mock=excluded.is_mock, effort=excluded.effort,
              item_count=excluded.item_count, created_at=excluded.created_at, pushed=0""",
-        (kind, date_key, title, overview, json.dumps(content, ensure_ascii=False), markdown, provider, model, 1 if is_mock else 0, item_count, now_iso()),
+        (kind, date_key, title, overview, json.dumps(content, ensure_ascii=False), markdown, provider, model, 1 if is_mock else 0, effort, item_count, now_iso()),
     )
     return int(conn.execute("SELECT id FROM editions WHERE kind=? AND date_key=?", (kind, date_key)).fetchone()[0])
 
@@ -562,20 +562,23 @@ def recent_runs(conn: sqlite3.Connection, limit: int = 20) -> list[dict]:
 
 
 def log_llm_call(conn: sqlite3.Connection, *, task: str, provider: str, model: str, is_mock: bool, prompt_tokens: int | None, completion_tokens: int | None,
-                 latency_ms: int | None, ok: bool, error: str | None, ref_type: str | None = None, ref_id: int | None = None) -> None:
+                 latency_ms: int | None, ok: bool, error: str | None, ref_type: str | None = None, ref_id: int | None = None,
+                 effort: str | None = None, reasoning_tokens: int | None = None) -> None:
     conn.execute(
-        """INSERT INTO llm_calls(task, provider, model, is_mock, prompt_tokens, completion_tokens, latency_ms, ok, error, ref_type, ref_id, created_at)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (task, provider, model, 1 if is_mock else 0, prompt_tokens, completion_tokens, latency_ms, 1 if ok else 0, error, ref_type, ref_id, now_iso()),
+        """INSERT INTO llm_calls(task, provider, model, is_mock, effort, prompt_tokens, completion_tokens, reasoning_tokens, latency_ms, ok, error, ref_type, ref_id, created_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (task, provider, model, 1 if is_mock else 0, effort, prompt_tokens, completion_tokens, reasoning_tokens, latency_ms, 1 if ok else 0, error, ref_type, ref_id, now_iso()),
     )
 
 
 def llm_stats(conn: sqlite3.Connection) -> dict:
     rows = conn.execute(
-        """SELECT provider, model, is_mock, COUNT(*) AS n, SUM(ok) AS ok, SUM(COALESCE(prompt_tokens,0)) AS pt,
-                  SUM(COALESCE(completion_tokens,0)) AS ct, AVG(latency_ms) AS lat FROM llm_calls GROUP BY provider, model, is_mock"""
+        """SELECT provider, model, is_mock, effort, COUNT(*) AS n, SUM(ok) AS ok, SUM(COALESCE(prompt_tokens,0)) AS pt,
+                  SUM(COALESCE(completion_tokens,0)) AS ct, SUM(COALESCE(reasoning_tokens,0)) AS rt, AVG(latency_ms) AS lat
+           FROM llm_calls GROUP BY provider, model, is_mock, effort ORDER BY n DESC"""
     )
-    return {"by_provider": rows_to_dicts(rows), "total": conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0]}
+    recent = rows_to_dicts(conn.execute("SELECT * FROM llm_calls ORDER BY id DESC LIMIT 20"))
+    return {"by_provider": rows_to_dicts(rows), "total": conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0], "recent": recent}
 
 
 # ============================================================ kv

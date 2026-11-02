@@ -26,12 +26,13 @@ class MockProvider(LLMProvider):
     label = "模拟模式（未调用模型）"
     model = "mock-rules"
     is_mock = True
+    reasoning = {"style": "none"}
 
     def __init__(self, reason: str = "LLM_PROVIDER=mock"):
         self.reason = reason
 
     # ------------------------------------------------------------------ api
-    def complete(self, messages, *, json_mode=False, temperature=0.2, max_tokens=None, task=None, context=None) -> LLMResponse:
+    def complete(self, messages, *, json_mode=False, temperature=0.2, max_tokens=None, effort=None, task=None, context=None) -> LLMResponse:
         ctx = context or {}
         fn = {
             "prescreen": self._prescreen,
@@ -42,7 +43,7 @@ class MockProvider(LLMProvider):
         }.get(task or "", self._generic)
         out = fn(ctx)
         text = json.dumps(out, ensure_ascii=False) if json_mode else (out if isinstance(out, str) else json.dumps(out, ensure_ascii=False))
-        return LLMResponse(text=text, provider=self.key, model=self.model, is_mock=True, latency_ms=0)
+        return LLMResponse(text=text, provider=self.key, model=self.model, is_mock=True, effort=None, latency_ms=0)
 
     def ping(self) -> tuple[bool, str]:
         return True, f"模拟模式（{self.reason}）"

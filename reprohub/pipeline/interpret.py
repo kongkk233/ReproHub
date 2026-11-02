@@ -56,7 +56,7 @@ def interpret_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: d
     resp = llm.run("interpret", _variables(settings, it), context=_context(it, src_cfg), ref_type="item", ref_id=it["id"])
     content = resp.json()
     md = build_markdown(content, it, is_mock=resp.is_mock)
-    repo.save_interpretation(conn, it["id"], content, md, provider=resp.provider, model=resp.model, is_mock=resp.is_mock)
+    repo.save_interpretation(conn, it["id"], content, md, provider=resp.provider, model=resp.model, is_mock=resp.is_mock, effort=resp.effort)
     return repo.get_interpretation(conn, it["id"])
 
 

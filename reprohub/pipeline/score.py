@@ -115,6 +115,7 @@ def score_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: dict)
         "llm_provider": resp.provider,
         "llm_model": resp.model,
         "llm_is_mock": resp.is_mock,
+        "llm_effort": resp.effort,
         "scored_at": now_iso(),
     }
     if data.get("title_zh"):

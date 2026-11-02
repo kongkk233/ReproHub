@@ -22,7 +22,7 @@
 | **阅读管理** | 未读 / 在读 / 已读、星标、稍后读、五星评分、标签、Markdown 笔记、按课题分集合、只看未读；导出 Markdown / JSON / CSV / BibTeX，JSON 导入。 |
 | **推送** | 日报与符合规则的高分条目推送到：Markdown 文件（可指向 Obsidian 仓库）、Server 酱、Bark、ntfy、飞书、企业微信、钉钉、Telegram、SMTP 邮件、通用 Webhook。规则可按最低分 / 偏好分 / 主题 / 类型过滤。 |
 | **对外出口** | RSS（精选 / 全部 / 文献 / 资讯 / 偏好 / 按主题 / 版次）、JSON API（`/openapi.json`、`/docs`）、`/llms.txt`、`/agent` 接入说明。 |
-| **模型** | 首选 **DeepSeek**；通义千问、智谱、Moonshot、OpenAI、Ollama、任意 OpenAI 兼容端点可切换；每个流水线步骤可单独指定提供商与模型。 |
+| **模型与思考强度** | 首选 **DeepSeek**（官方 `deepseek-flash` / `deepseek-v4-pro`）；Gemini、Grok 等 OpenAI 兼容网关，通义、智谱、Moonshot、OpenAI、Ollama、自定义端点可切换。统一的思考强度词汇 `off / low / medium / high` 按提供商映射（`reasoning_effort`、DeepSeek `thinking.disabled`、通义 `thinking_budget` …）。提供商 / 模型 / 强度可在环境变量、每个流水线步骤、运行时（CLI 标志、`reprohub llm set`、后台表单、API）四个层级设置，`provider/model` 简写一处切换两者。每次调用记录提供商、模型、强度与推理 tokens。 |
 | **模拟模式** | 没有 API key 时进入**明确标识的模拟模式**：评分由规则生成、解读只抽取原文句子、周报总述只做统计；所有这类结果在数据库、页面、RSS、API 中都带 `is_mock=true`，页首有横幅，**绝不伪报为真实模型调用**。`LLM_ALLOW_MOCK_FALLBACK=false` 可改为缺 key 直接报错。 |
 
 ---
@@ -74,6 +74,12 @@ reprohub pipeline [--no-collect ...] [--force]
 reprohub push-test CHANNEL         测试推送渠道
 reprohub serve [--host] [--port] [--reload] [--scheduler]
 reprohub run-forever               只跑调度
+reprohub llm status                各步骤实际使用的提供商/模型/强度与来源
+reprohub llm test [--all] [--provider P] [--model M] [--effort E]   真实调用一次，报告延迟与 tokens
+reprohub llm set --provider P --model M --effort E                   保存运行时覆盖
+reprohub llm clear                 清除运行时覆盖
+reprohub llm models [--provider P] 列出已知模型与端点返回的模型
+reprohub --provider x666 --effort high edition weekly                任意命令前加全局标志 = 本次临时覆盖
 reprohub demo-seed                 写入离线演示样例
 reprohub sources                   来源列表与状态
 reprohub export-reading            导出阅读记录 JSON
@@ -103,7 +109,7 @@ reprohub/
   push/        channels（10 种渠道）  dispatcher（规则）
   web/         app.py  views.py  api.py  feeds.py  templates/  static/
   scheduler.py  cli.py  demo.py
-tests/         pytest，离线（41 个用例）
+tests/         pytest，离线（50 个用例）
 data/          SQLite、推送 outbox（git 忽略）
 ```
 
@@ -111,10 +117,23 @@ data/          SQLite、推送 outbox（git 忽略）
 
 ## 配置要点
 
-### 换模型
+### 提供商 · 模型 · 思考强度
 
-`.env` 里 `LLM_PROVIDER=qwen` + `QWEN_API_KEY=...` 即可；提供商表在 `config/site.yaml → llm.providers`，自定义端点用 `LLM_PROVIDER=custom` + `CUSTOM_LLM_BASE_URL / CUSTOM_LLM_API_KEY / CUSTOM_LLM_MODEL`。
-想让「解读」用更强的模型、「预筛」用便宜模型：改 `config/models.yaml`。
+四个层级，高优先级覆盖低优先级：
+
+| 层级 | 怎么设 | 适合 |
+|---|---|---|
+| 调用点参数 | 代码里 `llm.run(..., provider=, model=, effort=)` | 程序内特殊场景 |
+| 运行时覆盖 | `reprohub --provider x666 --effort high <cmd>`（仅本次）；`reprohub llm set …`（持久，存库）；后台 `/admin#llm` 表单；`POST /api/v1/llm/override` | 临时换模型试效果、紧急降级 |
+| 步骤配置 | `config/models.yaml`：`score: { model: deepseek/deepseek-flash, effort: low }`、`interpret: { model: x666/grok-4.7, effort: high }` | 便宜模型做预筛，强模型写解读 |
+| 全局默认 | `.env`：`LLM_PROVIDER` / `LLM_MODEL` / `LLM_EFFORT` | 日常 |
+
+- `model` 处处支持 `provider/model` 简写，一次切换两者；模型若与选中的提供商不匹配会被忽略，不会张冠李戴。
+- 思考强度统一为 `off / low / medium / high`。每个提供商在 `config/site.yaml → llm.providers.<key>.reasoning` 声明映射：`style: openai` 发 `reasoning_effort`（`off` 时可追加 DeepSeek 的 `thinking: {type: disabled}`）；`style: custom` 按等级写请求体（如通义 `enable_thinking` + `thinking_budget`）；`style: none` 忽略。
+- 默认分配：`prescreen` / `cluster` 用 `off`（二元判断，越快越好），`score` 用 `low`，`interpret` / `digest` 用 `medium`。
+- 思考型模型的 `max_tokens` 通常同时覆盖推理与正文，解读/总述步骤默认给到 8000 / 6000；输出被截断时会报明确错误而不是解析失败。
+- 新增提供商只需在 `providers` 下加一段（base_url、api_key_env、默认 model、models 列表、reasoning），再到 `.env` 填 key；`reprohub llm test --provider <key>` 立即验证。
+- YAML 1.1 会把裸 `off` / `on` 解析成布尔值，配置里的 `"off"` 请保留引号。
 
 ### 加来源
 
@@ -149,6 +168,10 @@ POST /api/v1/items/{id}/interpret
 POST /api/v1/collections  /api/v1/collections/{cid}/items/{id}
 POST /api/v1/ingest                         Bearer INGEST_TOKEN，批量推送条目入库
 POST /api/v1/admin/run                      {"collect":true,"process":true,...}
+GET  /api/v1/llm                            当前提供商/模型/强度的解析结果、各步骤、可用提供商
+POST /api/v1/llm/override                   {"provider":"x666","model":"grok-4.7","effort":"high"}
+DELETE /api/v1/llm/override
+POST /api/v1/llm/test                       {"provider":"deepseek","effort":"off"}  真实试调一次
 ```
 
 RSS：`/feed.xml` `/feed/all.xml` `/feed/papers.xml` `/feed/news.xml` `/feed/preference.xml` `/feed/topic/<slug>.xml` `/feed/editions.xml`。
@@ -161,7 +184,7 @@ RSS：`/feed.xml` `/feed/all.xml` `/feed/papers.xml` `/feed/news.xml` `/feed/pre
 pytest
 ```
 
-全部离线运行（HTTP 被屏蔽、LLM 强制模拟），覆盖文本工具、分类门槛与偏好、LLM 回退与真实客户端、来源解析、完整流水线、推送规则、Web 页面与 API。
+全部离线运行（HTTP 被屏蔽、LLM 强制模拟、不读 `.env`），覆盖文本工具、分类门槛与偏好、LLM 回退与真实客户端、提供商/模型/强度解析优先级与映射、来源解析、完整流水线、推送规则、Web 页面与 API。
 
 ---
 

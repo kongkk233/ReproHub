@@ -8,6 +8,9 @@ from typing import Any
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.S)
 
+# 思考强度统一词汇；各提供商在 site.yaml -> llm.providers.*.reasoning 中声明映射
+EFFORT_LEVELS: tuple[str, ...] = ("off", "low", "medium", "high")
+
 
 class LLMError(Exception):
     pass
@@ -19,8 +22,10 @@ class LLMResponse:
     provider: str
     model: str
     is_mock: bool = False
+    effort: str | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    reasoning_tokens: int | None = None
     latency_ms: int = 0
     raw: dict = field(default_factory=dict)
 
@@ -46,6 +51,7 @@ class LLMProvider:
     label: str = "base"
     model: str = ""
     is_mock: bool = False
+    reasoning: dict = {}
 
     def complete(
         self,
@@ -54,6 +60,7 @@ class LLMProvider:
         json_mode: bool = False,
         temperature: float = 0.2,
         max_tokens: int | None = None,
+        effort: str | None = None,
         task: str | None = None,
         context: dict | None = None,
     ) -> LLMResponse:
@@ -62,5 +69,8 @@ class LLMProvider:
     def ping(self) -> tuple[bool, str]:
         return True, "ok"
 
+    def supports_effort(self) -> bool:
+        return (self.reasoning or {}).get("style", "none") != "none"
+
     def describe(self) -> dict:
-        return {"key": self.key, "label": self.label, "model": self.model, "is_mock": self.is_mock}
+        return {"key": self.key, "label": self.label, "model": self.model, "is_mock": self.is_mock, "supports_effort": self.supports_effort()}

@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS items (
   llm_provider TEXT,
   llm_model TEXT,
   llm_is_mock INTEGER NOT NULL DEFAULT 0,
+  llm_effort TEXT,
   scored_at TEXT,
   pushed INTEGER NOT NULL DEFAULT 0,
   extra TEXT NOT NULL DEFAULT '{}'
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS interpretations (
   provider TEXT,
   model TEXT,
   is_mock INTEGER NOT NULL DEFAULT 0,
+  effort TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -120,6 +122,7 @@ CREATE TABLE IF NOT EXISTS editions (
   provider TEXT,
   model TEXT,
   is_mock INTEGER NOT NULL DEFAULT 0,
+  effort TEXT,
   item_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   pushed INTEGER NOT NULL DEFAULT 0,
@@ -179,8 +182,10 @@ CREATE TABLE IF NOT EXISTS llm_calls (
   provider TEXT NOT NULL,
   model TEXT NOT NULL,
   is_mock INTEGER NOT NULL DEFAULT 0,
+  effort TEXT,
   prompt_tokens INTEGER,
   completion_tokens INTEGER,
+  reasoning_tokens INTEGER,
   latency_ms INTEGER,
   ok INTEGER NOT NULL DEFAULT 1,
   error TEXT,

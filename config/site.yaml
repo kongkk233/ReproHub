@@ -35,51 +35,102 @@ scheduler:
   cluster_every_minutes: 120
 
 llm:
-  # 环境变量 LLM_PROVIDER 选择下列 key；缺省 deepseek
+  # 全局默认由环境变量 LLM_PROVIDER / LLM_MODEL / LLM_EFFORT 决定（缺省如下）；
+  # 每个流水线步骤可在 models.yaml 覆盖；运行时可用 CLI 标志、`reprohub llm set` 或后台表单切换。
   default_provider: deepseek
-  request_timeout_seconds: 90
+  default_effort: low
+  request_timeout_seconds: 120
   max_retries: 3
+  # 思考强度统一词汇。每个提供商用 reasoning.style 声明如何表达：
+  #   openai  -> reasoning_effort: low|medium|high；off 时按 reasoning.off 追加请求体（无则省略参数）
+  #   none    -> 该提供商/模型不支持，忽略强度
+  #   custom  -> 用 reasoning.levels 为每个等级显式给出要合并进请求体的字段
+  effort_levels: [off, low, medium, high]
   providers:
     deepseek:
-      label: DeepSeek
+      label: DeepSeek（官方）
       base_url: https://api.deepseek.com
       api_key_env: DEEPSEEK_API_KEY
-      model: deepseek-chat
+      model: deepseek-flash
+      models: [deepseek-flash, deepseek-v4-pro]
       supports_json_mode: true
+      reasoning:
+        style: openai
+        "off": { thinking: { type: disabled } }
+    opus:
+      label: Gemini（opus.qzz.io 网关）
+      base_url: https://opus.qzz.io/v1
+      api_key_env: OPUS_API_KEY
+      model: gemini-3.8-flash
+      models: [gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3-flash, gemini-3.1-flash-lite, gemini-2.5-flash, gemini-2.5-flash-lite]
+      supports_json_mode: true
+      reasoning: { style: openai }
+    x666:
+      label: Grok（x666.me 网关）
+      base_url: https://x666.me/v1
+      api_key_env: X666_API_KEY
+      model: grok-4.7
+      models: [grok-4.7, grok-4.7-build-fast, grok-4.6, grok-4.5, glm-4.5-flash, minimax-m3.1-flash, step-5-preview]
+      supports_json_mode: true
+      reasoning: { style: openai }
+      # 该网关每次调用 20-45 秒，适合解读/总述，不建议用于批量评分
     qwen:
       label: 通义千问（DashScope 兼容模式）
       base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
       api_key_env: QWEN_API_KEY
       model: qwen-plus
+      models: [qwen-plus, qwen-max, qwen-turbo, qwen3-235b-a22b]
       supports_json_mode: true
+      reasoning:
+        style: custom
+        levels:
+          "off":  { enable_thinking: false }
+          low:    { enable_thinking: true, thinking_budget: 1024 }
+          medium: { enable_thinking: true, thinking_budget: 4096 }
+          high:   { enable_thinking: true, thinking_budget: 16384 }
     zhipu:
       label: 智谱 GLM
       base_url: https://open.bigmodel.cn/api/paas/v4
       api_key_env: ZHIPU_API_KEY
       model: glm-4-flash
+      models: [glm-4-flash, glm-4-plus, glm-4.5]
       supports_json_mode: false
+      reasoning:
+        style: custom
+        levels:
+          "off": { thinking: { type: disabled } }
+          low: { thinking: { type: enabled } }
+          medium: { thinking: { type: enabled } }
+          high: { thinking: { type: enabled } }
     moonshot:
       label: Moonshot Kimi
       base_url: https://api.moonshot.cn/v1
       api_key_env: MOONSHOT_API_KEY
       model: moonshot-v1-8k
+      models: [moonshot-v1-8k, moonshot-v1-32k, kimi-k2-0711-preview]
       supports_json_mode: true
+      reasoning: { style: none }
     openai:
       label: OpenAI
       base_url: https://api.openai.com/v1
       api_key_env: OPENAI_API_KEY
       model: gpt-4o-mini
+      models: [gpt-4o-mini, gpt-4o, o4-mini, gpt-5-mini]
       supports_json_mode: true
+      reasoning: { style: openai }
     ollama:
       label: Ollama（本地）
       base_url: http://127.0.0.1:11434/v1
       api_key_env: ""          # 本地无需 key
       model: qwen2.5:7b
+      models: [qwen2.5:7b, qwen3:8b, deepseek-r1:8b]
       supports_json_mode: true
       no_key_required: true
+      reasoning: { style: none }
     custom:
       label: 自定义 OpenAI 兼容端点
       base_url_env: CUSTOM_LLM_BASE_URL
       api_key_env: CUSTOM_LLM_API_KEY
       model_env: CUSTOM_LLM_MODEL
       supports_json_mode: true
+      reasoning: { style: openai }

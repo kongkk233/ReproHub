@@ -9,12 +9,32 @@
   <span><b>{{ counts.rejected }}</b> 已过滤</span><span><b>{{ counts.interpretations }}</b> 解读</span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span>
 </div>
 
-<h3>LLM</h3>
-<p class="small">模式：{% if llm.mode == 'live' %}<b>真实</b> {{ llm.label }} / {{ llm.model }}{% elif llm.mode == 'mock' %}<span class="badge mock">模拟</span> {{ llm.reason }}{% else %}错误 {{ llm.reason }}{% endif %}
-  · 请求的提供商：<code>{{ llm.requested_provider }}</code> · 各步骤：{% for k, v in llm.steps.items() %}<code>{{ k }}={{ v.provider }}{% if v.is_mock %}(mock){% endif %}</code> {% endfor %}</p>
+<h3 id="llm">LLM：提供商 · 模型 · 思考强度</h3>
+<p class="small">当前全局：{% if llm.mode == 'live' %}<b>真实</b> {{ llm.label }} / <code>{{ llm.model }}</code> · 强度 <code>{{ llm.effort or '不适用' }}</code>{% elif llm.mode == 'mock' %}<span class="badge mock">模拟</span> {{ llm.reason }}{% else %}错误 {{ llm.reason }}{% endif %}
+  <span class="muted">（来源：{{ llm.sources }}）</span>
+  {% if llm.overrides %}<br>运行时覆盖：<code>{{ llm.overrides }}</code>（优先于 models.yaml 与环境变量）{% endif %}</p>
+<table class="small"><thead><tr><th>步骤</th><th>提供商</th><th>模型</th><th>强度</th><th>状态</th></tr></thead><tbody>
+{% for k, v in llm.steps.items() %}<tr><td>{{ k }}</td><td>{{ v.provider }}</td><td>{{ v.model }}</td><td>{{ v.effort or '—' }}</td><td>{% if v.error %}<span class="status-error">{{ v.error }}</span>{% elif v.is_mock %}<span class="badge mock">模拟</span>{% else %}<span class="status-ok">live</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+<form method="post" action="/admin/llm" class="admin-form">
+  <select name="provider">
+    <option value="">提供商（保持）</option>
+    {% for p in llm.providers %}<option value="{{ p.key }}" {% if p.key == llm.overrides.get('provider') %}selected{% endif %} {% if not p.configured %}disabled{% endif %}>{{ p.key }} · {{ p.label }}{% if not p.configured %}（未配置 {{ p.api_key_env }}）{% endif %}</option>{% endfor %}
+  </select>
+  <input name="model" list="model-list" placeholder="模型（可空；可写 provider/model）" value="{{ llm.overrides.get('model', '') }}">
+  <datalist id="model-list">{% for p in llm.providers %}{% for m in p.models %}<option value="{{ p.key }}/{{ m }}">{% endfor %}{% endfor %}</datalist>
+  <select name="effort">
+    <option value="">强度（保持）</option>
+    {% for e in effort_levels %}<option value="{{ e }}" {% if e == llm.overrides.get('effort') %}selected{% endif %}>{{ e }}</option>{% endfor %}
+  </select>
+  <button class="btn primary" name="action" value="set" type="submit">保存为运行时覆盖</button>
+  <button class="btn" name="action" value="test" type="submit">只测试一次</button>
+  <button class="btn" name="action" value="clear" type="submit">清除覆盖</button>
+</form>
+<p class="muted small">优先级：调用点参数 &gt; 运行时覆盖（此表单 / <code>reprohub llm set</code> / <code>POST /api/v1/llm/override</code>）&gt; <code>config/models.yaml</code> 各步骤 &gt; 环境变量 <code>LLM_PROVIDER / LLM_MODEL / LLM_EFFORT</code> &gt; 提供商默认。强度映射见 <code>site.yaml → llm.providers.*.reasoning</code>。</p>
 {% if llm_stats.by_provider %}
-<table class="small"><thead><tr><th>提供商</th><th>模型</th><th>模拟</th><th>调用</th><th>成功</th><th>tokens(in/out)</th><th>均延迟</th></tr></thead><tbody>
-{% for r in llm_stats.by_provider %}<tr><td>{{ r.provider }}</td><td>{{ r.model }}</td><td>{{ '是' if r.is_mock else '否' }}</td><td>{{ r.n }}</td><td>{{ r.ok }}</td><td>{{ r.pt }}/{{ r.ct }}</td><td>{{ (r.lat or 0)|round|int }} ms</td></tr>{% endfor %}
+<table class="small"><thead><tr><th>提供商</th><th>模型</th><th>强度</th><th>模拟</th><th>调用</th><th>成功</th><th>tokens in/out/推理</th><th>均延迟</th></tr></thead><tbody>
+{% for r in llm_stats.by_provider %}<tr><td>{{ r.provider }}</td><td>{{ r.model }}</td><td>{{ r.effort or '—' }}</td><td>{{ '是' if r.is_mock else '否' }}</td><td>{{ r.n }}</td><td>{{ r.ok }}</td><td>{{ r.pt }}/{{ r.ct }}/{{ r.rt }}</td><td>{{ (r.lat or 0)|round|int }} ms</td></tr>{% endfor %}
 </tbody></table>
 {% endif %}
 

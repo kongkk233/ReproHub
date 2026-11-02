@@ -34,7 +34,7 @@
 <footer>
   {% for l in site.footer_links %}<a href="{{ l.href }}">{{ l.text }}</a>{% endfor %}
   <br>
-  <span class="small">{{ site.name }} v{{ version }} · LLM：{% if st.mode == 'live' %}{{ st.label }} / {{ st.model }}{% elif st.mode == 'mock' %}<span class="badge mock">模拟模式</span>{% else %}错误{% endif %}
+  <span class="small">{{ site.name }} v{{ version }} · LLM：{% if st.mode == 'live' %}{{ st.label }} / {{ st.model }}{% if st.effort %} · 强度 {{ st.effort }}{% endif %}{% elif st.mode == 'mock' %}<span class="badge mock">模拟模式</span>{% else %}错误{% endif %}
   {% if owner %}· <form method="post" action="/logout" class="inline-form"><button class="theme-toggle" type="submit">退出</button></form>{% endif %}</span>
 </footer>
 <script src="/static/app.js"></script>

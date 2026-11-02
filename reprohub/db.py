@@ -28,6 +28,11 @@ def migrate(conn: sqlite3.Connection) -> None:
     for stmt in (
         "ALTER TABLE items ADD COLUMN pushed INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE stories ADD COLUMN source_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE items ADD COLUMN llm_effort TEXT",
+        "ALTER TABLE interpretations ADD COLUMN effort TEXT",
+        "ALTER TABLE editions ADD COLUMN effort TEXT",
+        "ALTER TABLE llm_calls ADD COLUMN effort TEXT",
+        "ALTER TABLE llm_calls ADD COLUMN reasoning_tokens INTEGER",
     ):
         try:
             conn.execute(stmt)

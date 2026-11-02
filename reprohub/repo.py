@@ -315,6 +315,8 @@ def counts(conn: sqlite3.Connection) -> dict:
         "SELECT COUNT(*) FROM items i LEFT JOIN reading r ON r.item_id=i.id WHERE i.selected=1 AND (r.status IS NULL OR r.status='unread')"
     ).fetchone()[0]
     c["mock_scored"] = conn.execute("SELECT COUNT(*) FROM items WHERE status='scored' AND llm_is_mock=1").fetchone()[0]
+    c["mock_interpretations"] = conn.execute("SELECT COUNT(*) FROM interpretations WHERE is_mock=1").fetchone()[0]
+    c["cache_entries"] = conn.execute("SELECT COUNT(*) FROM llm_cache").fetchone()[0]
     return c
 
 
@@ -563,18 +565,59 @@ def recent_runs(conn: sqlite3.Connection, limit: int = 20) -> list[dict]:
 
 def log_llm_call(conn: sqlite3.Connection, *, task: str, provider: str, model: str, is_mock: bool, prompt_tokens: int | None, completion_tokens: int | None,
                  latency_ms: int | None, ok: bool, error: str | None, ref_type: str | None = None, ref_id: int | None = None,
-                 effort: str | None = None, reasoning_tokens: int | None = None) -> None:
+                 effort: str | None = None, reasoning_tokens: int | None = None, cached: bool = False) -> None:
     conn.execute(
-        """INSERT INTO llm_calls(task, provider, model, is_mock, effort, prompt_tokens, completion_tokens, reasoning_tokens, latency_ms, ok, error, ref_type, ref_id, created_at)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (task, provider, model, 1 if is_mock else 0, effort, prompt_tokens, completion_tokens, reasoning_tokens, latency_ms, 1 if ok else 0, error, ref_type, ref_id, now_iso()),
+        """INSERT INTO llm_calls(task, provider, model, is_mock, effort, prompt_tokens, completion_tokens, reasoning_tokens, latency_ms, cached, ok, error, ref_type, ref_id, created_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (task, provider, model, 1 if is_mock else 0, effort, prompt_tokens, completion_tokens, reasoning_tokens, latency_ms, 1 if cached else 0, 1 if ok else 0, error, ref_type, ref_id, now_iso()),
     )
+
+
+# ============================================================ llm cache
+def cache_get(conn: sqlite3.Connection, key: str) -> dict | None:
+    r = conn.execute("SELECT * FROM llm_cache WHERE key=?", (key,)).fetchone()
+    if not r:
+        return None
+    conn.execute("UPDATE llm_cache SET hits=hits+1, last_hit_at=? WHERE key=?", (now_iso(), key))
+    return dict(r)
+
+
+def cache_put(conn: sqlite3.Connection, key: str, *, task: str, provider: str, model: str, effort: str | None, text: str, prompt_tokens: int | None, completion_tokens: int | None) -> None:
+    conn.execute(
+        """INSERT INTO llm_cache(key, task, provider, model, effort, text, prompt_tokens, completion_tokens, hits, created_at)
+           VALUES(?,?,?,?,?,?,?,?,0,?)
+           ON CONFLICT(key) DO UPDATE SET provider=excluded.provider, model=excluded.model, effort=excluded.effort, text=excluded.text,
+             prompt_tokens=excluded.prompt_tokens, completion_tokens=excluded.completion_tokens, created_at=excluded.created_at""",
+        (key, task, provider, model, effort, text, prompt_tokens, completion_tokens, now_iso()),
+    )
+
+
+def cache_stats(conn: sqlite3.Connection) -> dict:
+    rows = conn.execute("SELECT task, COUNT(*) AS n, SUM(hits) AS hits, SUM(COALESCE(prompt_tokens,0)+COALESCE(completion_tokens,0)) AS tokens FROM llm_cache GROUP BY task").fetchall()
+    by_task = {r["task"]: {"entries": r["n"], "hits": r["hits"] or 0, "tokens_saved": (r["hits"] or 0) and int(r["tokens"] or 0) * (r["hits"] or 0) // max(1, r["n"])} for r in rows}
+    return {"entries": sum(v["entries"] for v in by_task.values()), "hits": sum(v["hits"] for v in by_task.values()), "by_task": by_task}
+
+
+def cache_clear(conn: sqlite3.Connection, task: str | None = None) -> int:
+    cur = conn.execute("DELETE FROM llm_cache WHERE task=?", (task,)) if task else conn.execute("DELETE FROM llm_cache")
+    return cur.rowcount
+
+
+def items_mock_scored(conn: sqlite3.Connection, *, days: int, limit: int) -> list[dict]:
+    """仍是模拟评分的条目，已入选、偏好高、新发表的优先——有真实模型时用于升级。"""
+    since = (now_utc() - timedelta(days=days)).isoformat(timespec="seconds")
+    rows = conn.execute(
+        ITEM_SELECT + """ WHERE i.status IN ('scored','error') AND i.llm_is_mock=1 AND COALESCE(i.published_at, i.fetched_at)>=?
+                          ORDER BY i.selected DESC, i.preference_score DESC, COALESCE(i.published_at, i.fetched_at) DESC LIMIT ?""",
+        (since, limit),
+    )
+    return rows_to_dicts(rows)
 
 
 def llm_stats(conn: sqlite3.Connection) -> dict:
     rows = conn.execute(
-        """SELECT provider, model, is_mock, effort, COUNT(*) AS n, SUM(ok) AS ok, SUM(COALESCE(prompt_tokens,0)) AS pt,
-                  SUM(COALESCE(completion_tokens,0)) AS ct, SUM(COALESCE(reasoning_tokens,0)) AS rt, AVG(latency_ms) AS lat
+        """SELECT provider, model, is_mock, effort, COUNT(*) AS n, SUM(ok) AS ok, SUM(cached) AS cached, SUM(COALESCE(prompt_tokens,0)) AS pt,
+                  SUM(COALESCE(completion_tokens,0)) AS ct, SUM(COALESCE(reasoning_tokens,0)) AS rt, AVG(CASE WHEN cached=0 THEN latency_ms END) AS lat
            FROM llm_calls GROUP BY provider, model, is_mock, effort ORDER BY n DESC"""
     )
     recent = rows_to_dicts(conn.execute("SELECT * FROM llm_calls ORDER BY id DESC LIMIT 20"))

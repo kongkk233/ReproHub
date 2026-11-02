@@ -137,29 +137,93 @@ def score_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: dict)
     return {"id": it["id"], "final_score": final, "selected": selected, "is_mock": resp.is_mock}
 
 
-def process_new(settings: Settings, conn: sqlite3.Connection, llm: LLM, *, limit: int = 300, retry_errors: bool = False, logger: Logger = log.info) -> dict:
+def _concurrency(settings: Settings, llm: LLM) -> int:
+    if llm.provider_for("score").is_mock:
+        return 1
+    n = settings.env("REPROHUB_LLM_CONCURRENCY") or (settings.site.get("llm") or {}).get("concurrency", 4)
+    try:
+        return max(1, min(16, int(n)))
+    except (TypeError, ValueError):
+        return 4
+
+
+def _score_batch(settings: Settings, conn: sqlite3.Connection, llm: LLM, items: list[dict], *, prescreen: bool, logger: Logger, label: str) -> dict:
+    """多线程评分：每个线程用自己的 SQLite 连接（WAL 下可并发），网络等待不再串行。"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from ..db import connect
+
     out = {"processed": 0, "rejected": 0, "scored": 0, "selected": 0, "errors": 0, "mock": 0, "selected_ids": []}
+    if not items:
+        return out
+    workers = _concurrency(settings, llm)
+
+    def work(it: dict) -> tuple[dict, str, dict | None, str | None]:
+        tconn = connect(settings) if workers > 1 else conn
+        tllm = LLM(settings, tconn, overrides=llm.overrides) if workers > 1 else llm
+        try:
+            if prescreen:
+                ok, reason = prescreen_item(settings, tconn, tllm, it)
+                if not ok:
+                    repo.update_item(tconn, it["id"], status="rejected", reject_reason=reason)
+                    return it, "rejected", None, reason
+            try:
+                r = score_item(settings, tconn, tllm, it)
+            except LLMError as e:
+                repo.update_item(tconn, it["id"], status="error", reject_reason=str(e)[:300])
+                return it, "error", None, str(e)
+            return it, "scored", r, None
+        finally:
+            if workers > 1:
+                tconn.close()
+
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="score") as ex:
+        futures = [ex.submit(work, it) for it in items]
+        for fut in as_completed(futures):
+            it, st, r, err = fut.result()
+            out["processed"] += 1
+            if st == "rejected":
+                out["rejected"] += 1
+            elif st == "error":
+                out["errors"] += 1
+                logger(f"  ✗ 评分失败 #{it['id']}: {err}")
+            else:
+                out["scored"] += 1
+                out["mock"] += 1 if r["is_mock"] else 0
+                if r["selected"]:
+                    out["selected"] += 1
+                    out["selected_ids"].append(it["id"])
+    logger(f"[{label}] 处理 {out['processed']}（并发 {workers}）：拒绝 {out['rejected']}，评分 {out['scored']}（入选 {out['selected']}，模拟 {out['mock']}），失败 {out['errors']}")
+    return out
+
+
+def process_new(settings: Settings, conn: sqlite3.Connection, llm: LLM, *, limit: int = 300, retry_errors: bool = False, upgrade_mock: bool | None = None, logger: Logger = log.info) -> dict:
     items = repo.items_by_status(conn, "new", limit)
     if retry_errors:
         items += repo.items_by_status(conn, "error", limit)
-    for it in items:
-        out["processed"] += 1
-        ok, reason = prescreen_item(settings, conn, llm, it)
-        if not ok:
-            repo.update_item(conn, it["id"], status="rejected", reject_reason=reason)
-            out["rejected"] += 1
-            continue
-        try:
-            r = score_item(settings, conn, llm, it)
-        except LLMError as e:
-            repo.update_item(conn, it["id"], status="error", reject_reason=str(e)[:300])
-            out["errors"] += 1
-            logger(f"  ✗ 评分失败 #{it['id']}: {e}")
-            continue
-        out["scored"] += 1
-        out["mock"] += 1 if r["is_mock"] else 0
-        if r["selected"]:
-            out["selected"] += 1
-            out["selected_ids"].append(it["id"])
-    logger(f"[评分] 处理 {out['processed']}：拒绝 {out['rejected']}，评分 {out['scored']}（入选 {out['selected']}，模拟 {out['mock']}），失败 {out['errors']}")
+    out = _score_batch(settings, conn, llm, items, prescreen=True, logger=logger, label="评分")
+    sc = settings.selection.get("scoring") or {}
+    if upgrade_mock is None:
+        upgrade_mock = bool(sc.get("upgrade_mock", True))
+    if upgrade_mock:
+        up = upgrade_mock_scores(settings, conn, llm, logger=logger)
+        out["upgraded"] = up["scored"]
+        out["selected_ids"] += [i for i in up["selected_ids"] if i not in out["selected_ids"]]
+        out["selected"] += up["selected"]
     return out
+
+
+def upgrade_mock_scores(settings: Settings, conn: sqlite3.Connection, llm: LLM, *, limit: int | None = None, logger: Logger = log.info) -> dict:
+    """有真实提供商时，把仍是模拟评分的条目重评（已入选、偏好高、新发表的优先）。模拟模式下什么都不做。"""
+    empty = {"processed": 0, "rejected": 0, "scored": 0, "selected": 0, "errors": 0, "mock": 0, "selected_ids": []}
+    if llm.provider_for("score").is_mock:
+        return empty
+    sc = settings.selection.get("scoring") or {}
+    items = repo.items_mock_scored(conn, days=int(sc.get("upgrade_mock_days", 45)), limit=int(limit or sc.get("upgrade_mock_limit", 300)))
+    if not items:
+        return empty
+    logger(f"[升级] {len(items)} 条模拟评分将用真实模型重评（{llm.provider_for('score').key}）…")
+    # 升级不再预筛：这些条目已通过领域门槛；重评前先清掉它们的模拟解读，让解读步骤重做
+    ids = [it["id"] for it in items]
+    conn.execute(f"DELETE FROM interpretations WHERE is_mock=1 AND item_id IN ({','.join('?' * len(ids))})", ids)
+    return _score_batch(settings, conn, llm, items, prescreen=False, logger=logger, label="升级")

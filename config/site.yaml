@@ -41,10 +41,13 @@ llm:
   default_effort: low
   request_timeout_seconds: 120
   max_retries: 3
+  # 评分步骤并发线程数（环境变量 REPROHUB_LLM_CONCURRENCY 可覆盖）；模拟模式自动为 1
+  concurrency: 4
   # 思考强度统一词汇。每个提供商用 reasoning.style 声明如何表达：
   #   openai  -> reasoning_effort: low|medium|high；off 时按 reasoning.off 追加请求体（无则省略参数）
   #   none    -> 该提供商/模型不支持，忽略强度
   #   custom  -> 用 reasoning.levels 为每个等级显式给出要合并进请求体的字段
+  # 可选 rate_limit: { requests: N, per_seconds: S } 为提供商加滑动窗口限速（跨线程共享）
   effort_levels: [off, low, medium, high]
   providers:
     deepseek:
@@ -73,7 +76,8 @@ llm:
       models: [grok-4.7, grok-4.7-build-fast, grok-4.6, grok-4.5, glm-4.5-flash, minimax-m3.1-flash, step-5-preview]
       supports_json_mode: true
       reasoning: { style: openai }
-      # 该网关每次调用 20-45 秒，适合解读/总述，不建议用于批量评分
+      # 该网关每次调用 20-60 秒且限 25 次 / 5 分钟：适合解读/总述等低频步骤，不要用于批量评分
+      rate_limit: { requests: 25, per_seconds: 300 }
     qwen:
       label: 通义千问（DashScope 兼容模式）
       base_url: https://dashscope.aliyuncs.com/compatible-mode/v1

@@ -22,6 +22,10 @@ scoring:
   select_threshold: { 1: 60, 2: 62, 3: 68 }
   # 不同条目类型的阈值偏移
   kind_adjust: { paper: 0, preprint: 2, guideline: -5, news: 5, post: 8, other: 10 }
+  # 有真实提供商时，自动把仍是「模拟评分」的条目重评（已入选、偏好高、新发表优先）；每轮上限与回溯天数
+  upgrade_mock: true
+  upgrade_mock_limit: 300
+  upgrade_mock_days: 45
 
 interpret:
   # 自动为 final_score ≥ 该值 且 kind 属于 kinds 的条目生成文献解读；其余按需点击生成

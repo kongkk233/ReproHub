@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import copy
+import threading
 import time
+from collections import deque
 
 import httpx
 
@@ -29,6 +31,45 @@ def reasoning_body(reasoning: dict | None, effort: str | None) -> dict:
     return {"reasoning_effort": effort}
 
 
+class RateLimiter:
+    """滑动窗口限速：最多 requests 次 / per_seconds 秒，超出则等待。线程安全。"""
+
+    def __init__(self, requests: int, per_seconds: float):
+        self.requests = max(1, int(requests))
+        self.per = float(per_seconds)
+        self._times: deque[float] = deque()
+        self._lock = threading.Lock()
+
+    def acquire(self) -> float:
+        waited = 0.0
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                while self._times and now - self._times[0] >= self.per:
+                    self._times.popleft()
+                if len(self._times) < self.requests:
+                    self._times.append(now)
+                    return waited
+                wait = self.per - (now - self._times[0]) + 0.05
+            time.sleep(wait)
+            waited += wait
+
+
+_limiters: dict[str, RateLimiter] = {}
+_limiters_lock = threading.Lock()
+
+
+def get_limiter(key: str, cfg: dict | None) -> RateLimiter | None:
+    """同一提供商共用一个限速器（跨线程）。cfg: {requests: 25, per_seconds: 300}"""
+    if not cfg or not cfg.get("requests"):
+        return None
+    with _limiters_lock:
+        lim = _limiters.get(key)
+        if lim is None or (lim.requests, lim.per) != (int(cfg["requests"]), float(cfg.get("per_seconds", 60))):
+            lim = _limiters[key] = RateLimiter(int(cfg["requests"]), float(cfg.get("per_seconds", 60)))
+        return lim
+
+
 class OpenAICompatProvider(LLMProvider):
     def __init__(
         self,
@@ -40,6 +81,7 @@ class OpenAICompatProvider(LLMProvider):
         *,
         supports_json_mode: bool = True,
         reasoning: dict | None = None,
+        rate_limit: dict | None = None,
         timeout: float = 120.0,
         max_retries: int = 3,
     ):
@@ -50,6 +92,7 @@ class OpenAICompatProvider(LLMProvider):
         self.model = model
         self.supports_json_mode = supports_json_mode
         self.reasoning = reasoning or {"style": "openai"}
+        self.limiter = get_limiter(key, rate_limit)
         self.timeout = timeout
         self.max_retries = max(1, max_retries)
         self.is_mock = False
@@ -74,6 +117,8 @@ class OpenAICompatProvider(LLMProvider):
         url = f"{self.base_url}/chat/completions"
         last_err: Exception | None = None
         for attempt in range(self.max_retries):
+            if self.limiter:
+                self.limiter.acquire()
             t0 = time.monotonic()
             try:
                 with httpx.Client(timeout=self.timeout) as client:

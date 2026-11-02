@@ -53,7 +53,7 @@ def interpret_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: d
         if not existing.get("is_mock") or llm.provider_for("interpret").is_mock:
             return existing
     src_cfg = settings.source_cfg(it.get("source_key")) or {}
-    resp = llm.run("interpret", _variables(settings, it), context=_context(it, src_cfg), ref_type="item", ref_id=it["id"])
+    resp = llm.run("interpret", _variables(settings, it), context=_context(it, src_cfg), ref_type="item", ref_id=it["id"], use_cache=not force)
     content = resp.json()
     md = build_markdown(content, it, is_mock=resp.is_mock)
     repo.save_interpretation(conn, it["id"], content, md, provider=resp.provider, model=resp.model, is_mock=resp.is_mock, effort=resp.effort)

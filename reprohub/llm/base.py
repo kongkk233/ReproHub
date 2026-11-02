@@ -27,6 +27,7 @@ class LLMResponse:
     completion_tokens: int | None = None
     reasoning_tokens: int | None = None
     latency_ms: int = 0
+    cached: bool = False
     raw: dict = field(default_factory=dict)
 
     def json(self) -> Any:

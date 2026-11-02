@@ -48,7 +48,7 @@ def cmd_status(args, settings):
     _print(f"LLM：{st['mode']}  provider={st.get('key') or st.get('provider')} model={st.get('model')} effort={st.get('effort')}" + (f"  原因：{st.get('reason')}" if st.get("reason") else ""))
     c = repo.counts(conn)
     _print(f"条目 {c['items']}（待评分 {c['new']}，已评分 {c['scored']}，入选 {c['selected']}，已过滤 {c['rejected']}，模拟评分 {c['mock_scored']}）")
-    _print(f"解读 {c['interpretations']} · 事件 {c['stories']} · 版次 {c['editions']} · 未读精选 {c['unread_selected']}")
+    _print(f"解读 {c['interpretations']}（模拟 {c['mock_interpretations']}）· 事件 {c['stories']} · 版次 {c['editions']} · 未读精选 {c['unread_selected']} · 缓存 {c['cache_entries']} 条")
     for r in repo.recent_runs(conn, 3):
         _print(f"运行 #{r['id']} {r['started_at'][:16]} {r['status']}")
 
@@ -66,7 +66,17 @@ def cmd_process(args, settings):
 
     _banner(settings)
     conn = get_conn(settings)
-    process_new(settings, conn, LLM(settings, conn), limit=args.limit, retry_errors=args.retry_errors, logger=_print)
+    process_new(settings, conn, LLM(settings, conn), limit=args.limit, retry_errors=args.retry_errors, upgrade_mock=(False if args.no_upgrade_mock else None), logger=_print)
+
+
+def cmd_upgrade(args, settings):
+    from .pipeline.score import upgrade_mock_scores
+
+    _banner(settings)
+    conn = get_conn(settings)
+    r = upgrade_mock_scores(settings, conn, LLM(settings, conn), limit=args.limit, logger=_print)
+    if not r["processed"]:
+        _print("没有需要升级的模拟评分（或当前仍是模拟模式）")
 
 
 def cmd_interpret(args, settings):
@@ -197,6 +207,13 @@ def cmd_llm(args, settings):
     elif sub == "clear":
         clear_overrides(conn)
         _print("运行时覆盖已清除")
+    elif sub == "cache":
+        if args.clear:
+            _print(f"已清除 {repo.cache_clear(conn, args.task)} 条缓存")
+        st = repo.cache_stats(conn)
+        _print(f"缓存 {st['entries']} 条，累计命中 {st['hits']} 次")
+        for t, v in st["by_task"].items():
+            _print(f"  {t:<10} {v['entries']:>5} 条  命中 {v['hits']:>5}")
     elif sub == "models":
         key = args.provider or llm_status(settings, conn).get("key")
         p = build_provider(settings, key)
@@ -240,7 +257,12 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("process", help="预筛与评分")
     c.add_argument("--limit", type=int, default=300)
     c.add_argument("--retry-errors", action="store_true")
+    c.add_argument("--no-upgrade-mock", action="store_true", help="不把模拟评分升级为真实评分")
     c.set_defaults(fn=cmd_process)
+
+    c = sub.add_parser("upgrade", help="用真实模型重评仍是模拟评分的条目（已入选/偏好高/新发表优先）")
+    c.add_argument("--limit", type=int)
+    c.set_defaults(fn=cmd_upgrade)
 
     c = sub.add_parser("interpret", help="生成文献解读")
     c.add_argument("--item", type=int)
@@ -285,6 +307,8 @@ def build_parser() -> argparse.ArgumentParser:
     st = ls.add_parser("set", help="保存运行时覆盖（优先于 models.yaml 与环境变量）")
     st.add_argument("--provider"); st.add_argument("--model"); st.add_argument("--effort", choices=list(EFFORT_LEVELS))
     ls.add_parser("clear", help="清除运行时覆盖")
+    cc = ls.add_parser("cache", help="查看/清理真实模型输出缓存")
+    cc.add_argument("--clear", action="store_true"); cc.add_argument("--task")
     m = ls.add_parser("models", help="列出提供商的已知模型与端点返回的模型")
     m.add_argument("--provider")
     c.set_defaults(fn=cmd_llm)

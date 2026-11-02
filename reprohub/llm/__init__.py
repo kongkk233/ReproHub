@@ -10,6 +10,7 @@ model 一律支持 "provider/model" 简写。
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import sqlite3
@@ -87,15 +88,14 @@ def set_process_overrides(**kw: str | None) -> dict:
 
 
 def load_overrides(conn: sqlite3.Connection | None) -> dict:
-    out: dict = {}
-    if conn is not None:
-        try:
-            raw = repo.kv_get(conn, OVERRIDE_KEY)
-            out.update(json.loads(raw) if raw else {})
-        except (sqlite3.Error, ValueError):
-            pass
-    out.update(_process_overrides)
-    return out
+    """kv 里的运行时覆盖（不含本进程的 CLI 标志——它们是更高的一层，见 resolve_choice）。"""
+    if conn is None:
+        return {}
+    try:
+        raw = repo.kv_get(conn, OVERRIDE_KEY)
+        return json.loads(raw) if raw else {}
+    except (sqlite3.Error, ValueError):
+        return {}
 
 
 def set_overrides(conn: sqlite3.Connection, *, provider: str | None = None, model: str | None = None, effort: str | None = None, replace: bool = False) -> dict:
@@ -122,6 +122,7 @@ def resolve_choice(settings: Settings, step: str | None = None, *, overrides: di
     step_cfg = dict(((settings.models.get("steps") or {}).get(step or "", {}) or {}))
     layers: list[tuple[str, dict]] = [
         ("explicit", explicit or {}),
+        ("cli", dict(_process_overrides)),
         ("override", overrides or {}),
         ("step", step_cfg),
         ("env", {"provider": settings.env("LLM_PROVIDER"), "model": settings.env("LLM_MODEL"), "effort": settings.env("LLM_EFFORT")}),
@@ -202,6 +203,7 @@ def build_provider(settings: Settings, key: str, model_override: str | None = No
         model=model,
         supports_json_mode=bool(cfg.get("supports_json_mode", True)),
         reasoning=cfg.get("reasoning") or {"style": "openai"},
+        rate_limit=cfg.get("rate_limit"),
         timeout=float(llm_cfg.get("request_timeout_seconds", 120)),
         max_retries=int(llm_cfg.get("max_retries", 3)),
     )
@@ -304,11 +306,22 @@ class LLM:
         provider: str | None = None,
         model: str | None = None,
         effort: str | None = None,
+        use_cache: bool = True,
     ) -> LLMResponse:
+        """渲染提示词并调用。真实模型的输出按 (task, 提示词) 哈希缓存：同一篇文章不重复花 token；
+        use_cache=False（如「重新生成」）绕过缓存但仍会写入。模拟输出永不缓存。"""
         choice = self.choice_for(task, provider=provider, model=model, effort=effort)
         prov = self.provider_for(task, provider=provider, model=model, effort=effort)
         step_cfg = dict(((self.settings.models.get("steps") or {}).get(task, {}) or {}))
         prompt = self.render(task, variables)
+        cache_key = hashlib.sha1(f"{task}\n{int(json_mode)}\n{SYSTEM_PROMPT}\n{prompt}".encode("utf-8")).hexdigest()
+        if use_cache and self.conn is not None and not prov.is_mock:
+            hit = repo.cache_get(self.conn, cache_key)
+            if hit:
+                resp = LLMResponse(text=hit["text"], provider=hit["provider"], model=hit["model"], is_mock=False, effort=hit.get("effort"),
+                                   prompt_tokens=0, completion_tokens=0, latency_ms=0, cached=True)
+                self._log(task, prov, resp, effort=hit.get("effort"), ok=True, error=None, ref_type=ref_type, ref_id=ref_id, cached=True)
+                return resp
         messages = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
         temp = temperature if temperature is not None else float(step_cfg.get("temperature", 0.2))
         max_tokens = step_cfg.get("max_tokens")
@@ -318,9 +331,15 @@ class LLM:
             self._log(task, prov, None, effort=choice.effort, ok=False, error=str(e), ref_type=ref_type, ref_id=ref_id)
             raise
         self._log(task, prov, resp, effort=choice.effort, ok=True, error=None, ref_type=ref_type, ref_id=ref_id)
+        if self.conn is not None and not prov.is_mock and resp.text:
+            try:
+                repo.cache_put(self.conn, cache_key, task=task, provider=resp.provider, model=resp.model, effort=resp.effort, text=resp.text,
+                               prompt_tokens=resp.prompt_tokens, completion_tokens=resp.completion_tokens)
+            except sqlite3.Error:
+                pass
         return resp
 
-    def _log(self, task: str, provider: LLMProvider, resp: LLMResponse | None, *, effort: str | None, ok: bool, error: str | None, ref_type, ref_id) -> None:
+    def _log(self, task: str, provider: LLMProvider, resp: LLMResponse | None, *, effort: str | None, ok: bool, error: str | None, ref_type, ref_id, cached: bool = False) -> None:
         if self.conn is None:
             return
         try:
@@ -339,6 +358,7 @@ class LLM:
                 error=error,
                 ref_type=ref_type,
                 ref_id=ref_id,
+                cached=cached,
             )
         except sqlite3.Error:
             pass

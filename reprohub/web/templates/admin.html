@@ -6,7 +6,9 @@
 
 <div class="stats">
   <span><b>{{ counts['items'] }}</b> 条目</span><span><b>{{ counts.new }}</b> 待评分</span><span><b>{{ counts.scored }}</b> 已评分</span><span><b>{{ counts.selected }}</b> 入选</span>
-  <span><b>{{ counts.rejected }}</b> 已过滤</span><span><b>{{ counts.interpretations }}</b> 解读</span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span>
+  <span><b>{{ counts.rejected }}</b> 已过滤</span><span><b>{{ counts.interpretations }}</b> 解读</span>
+  {% if counts.mock_scored %}<span class="badge mock">{{ counts.mock_scored }} 条仍是模拟评分{% if counts.mock_interpretations %} · {{ counts.mock_interpretations }} 条模拟解读{% endif %}</span>{% endif %}
+  <span>缓存 <b>{{ cache.entries }}</b> 条 · 命中 <b>{{ cache.hits }}</b></span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span>
 </div>
 
 <h3 id="llm">LLM：提供商 · 模型 · 思考强度</h3>
@@ -33,8 +35,8 @@
 </form>
 <p class="muted small">优先级：调用点参数 &gt; 运行时覆盖（此表单 / <code>reprohub llm set</code> / <code>POST /api/v1/llm/override</code>）&gt; <code>config/models.yaml</code> 各步骤 &gt; 环境变量 <code>LLM_PROVIDER / LLM_MODEL / LLM_EFFORT</code> &gt; 提供商默认。强度映射见 <code>site.yaml → llm.providers.*.reasoning</code>。</p>
 {% if llm_stats.by_provider %}
-<table class="small"><thead><tr><th>提供商</th><th>模型</th><th>强度</th><th>模拟</th><th>调用</th><th>成功</th><th>tokens in/out/推理</th><th>均延迟</th></tr></thead><tbody>
-{% for r in llm_stats.by_provider %}<tr><td>{{ r.provider }}</td><td>{{ r.model }}</td><td>{{ r.effort or '—' }}</td><td>{{ '是' if r.is_mock else '否' }}</td><td>{{ r.n }}</td><td>{{ r.ok }}</td><td>{{ r.pt }}/{{ r.ct }}/{{ r.rt }}</td><td>{{ (r.lat or 0)|round|int }} ms</td></tr>{% endfor %}
+<table class="small"><thead><tr><th>提供商</th><th>模型</th><th>强度</th><th>模拟</th><th>调用</th><th>缓存命中</th><th>tokens in/out/推理</th><th>均延迟</th></tr></thead><tbody>
+{% for r in llm_stats.by_provider %}<tr><td>{{ r.provider }}</td><td>{{ r.model }}</td><td>{{ r.effort or '—' }}</td><td>{{ '是' if r.is_mock else '否' }}</td><td>{{ r.n }}</td><td>{{ r.cached or 0 }}</td><td>{{ r.pt }}/{{ r.ct }}/{{ r.rt }}</td><td>{{ (r.lat or 0)|round|int }} ms</td></tr>{% endfor %}
 </tbody></table>
 {% endif %}
 
@@ -43,7 +45,9 @@
   <select name="action">
     <option value="pipeline">完整流水线（采集→评分→解读→聚类→日报→推送）</option>
     <option value="collect">仅采集（可指定来源 key）</option>
-    <option value="process">仅预筛/评分（含重试失败项）</option>
+    <option value="process">仅预筛/评分（含重试失败项与模拟升级）</option>
+    <option value="upgrade">升级模拟评分为真实评分（key=本次上限，可空）</option>
+    <option value="cache-clear">清空模型输出缓存</option>
     <option value="interpret">仅自动解读</option>
     <option value="cluster">仅聚类/热度</option>
     <option value="daily">生成日报（key=日期，可空）</option>

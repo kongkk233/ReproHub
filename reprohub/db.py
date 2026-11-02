@@ -33,6 +33,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         "ALTER TABLE editions ADD COLUMN effort TEXT",
         "ALTER TABLE llm_calls ADD COLUMN effort TEXT",
         "ALTER TABLE llm_calls ADD COLUMN reasoning_tokens INTEGER",
+        "ALTER TABLE llm_calls ADD COLUMN cached INTEGER NOT NULL DEFAULT 0",
     ):
         try:
             conn.execute(stmt)

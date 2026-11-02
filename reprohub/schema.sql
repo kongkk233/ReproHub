@@ -187,12 +187,29 @@ CREATE TABLE IF NOT EXISTS llm_calls (
   completion_tokens INTEGER,
   reasoning_tokens INTEGER,
   latency_ms INTEGER,
+  cached INTEGER NOT NULL DEFAULT 0,
   ok INTEGER NOT NULL DEFAULT 1,
   error TEXT,
   ref_type TEXT,
   ref_id INTEGER,
   created_at TEXT NOT NULL
 );
+
+-- 真实模型输出缓存：同一任务 + 同一提示词不再重复调用（模拟输出永不缓存）
+CREATE TABLE IF NOT EXISTS llm_cache (
+  key TEXT PRIMARY KEY,
+  task TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  effort TEXT,
+  text TEXT NOT NULL,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  hits INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  last_hit_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_llm_cache_task ON llm_cache(task);
 
 CREATE TABLE IF NOT EXISTS kv (
   key TEXT PRIMARY KEY,

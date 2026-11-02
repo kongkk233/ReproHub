@@ -61,7 +61,7 @@ def run_pipeline(
         if do_collect:
             summary["collect"] = collect(settings, conn, source_keys=source_keys, force=force, logger=_log)
         if do_process:
-            summary["process"] = process_new(settings, conn, llm, limit=int(settings.env("REPROHUB_PROCESS_LIMIT", "1000")), logger=_log)
+            summary["process"] = process_new(settings, conn, llm, limit=int(settings.env("REPROHUB_PROCESS_LIMIT", "1000")), retry_errors=True, logger=_log)
         if do_interpret:
             summary["interpret"] = auto_interpret(settings, conn, llm, logger=_log)
         if do_cluster:

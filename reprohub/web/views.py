@@ -17,7 +17,7 @@ from ..pipeline.collect import collect
 from ..pipeline.editions import build_daily, build_monthly, build_weekly
 from ..pipeline.interpret import auto_interpret, interpret_item
 from ..pipeline.runner import mock_banner, run_pipeline
-from ..pipeline.score import process_new
+from ..pipeline.score import process_new, upgrade_mock_scores
 from ..push import channel_status, test_channel
 from ..push.dispatcher import push_edition
 from ..settings import get_settings
@@ -422,7 +422,7 @@ def admin(request: Request):
         request, "admin.html", title="后台",
         counts=repo.counts(conn), llm=llm_status(settings, conn), banner=mock_banner(settings, conn), sources=repo.source_stats(conn), effort_levels=list(EFFORT_LEVELS),
         llm_test_result=request.query_params.get("llm_test"),
-        runs=repo.recent_runs(conn, 15), pushes=repo.recent_pushes(conn, 30), channels=channel_status(settings), llm_stats=repo.llm_stats(conn),
+        runs=repo.recent_runs(conn, 15), pushes=repo.recent_pushes(conn, 30), channels=channel_status(settings), llm_stats=repo.llm_stats(conn), cache=repo.cache_stats(conn),
         rules=settings.push.get("rules") or [], message=request.query_params.get("msg"),
     )
 
@@ -464,6 +464,12 @@ def admin_run(request: Request, action: str = Form(...), key: str = Form(""), _=
             collect(settings, conn, force=True, source_keys=[key] if key else None, logger=logger)
         elif action == "process":
             process_new(settings, conn, llm, retry_errors=True, logger=logger)
+        elif action == "upgrade":
+            r = upgrade_mock_scores(settings, conn, llm, limit=int(key) if key.isdigit() else None, logger=logger)
+            if not r["processed"]:
+                msgs.append("没有需要升级的模拟评分（或当前仍是模拟模式）")
+        elif action == "cache-clear":
+            msgs.append(f"已清除 {repo.cache_clear(conn)} 条模型输出缓存")
         elif action == "interpret":
             auto_interpret(settings, conn, llm, logger=logger)
         elif action == "cluster":

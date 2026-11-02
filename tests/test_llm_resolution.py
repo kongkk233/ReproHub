@@ -97,3 +97,76 @@ def test_status_lists_providers_and_effort(settings, conn, monkeypatch):
 def test_test_llm_in_mock_mode_is_labelled(settings, conn):
     r = test_llm(settings, conn, provider="mock")
     assert r["ok"] and r["is_mock"] and r["effort"] is None
+
+
+def test_cache_hits_for_live_provider_and_never_for_mock(settings, conn, monkeypatch):
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json={"model": "deepseek-flash", "choices": [{"message": {"content": '{"score": 70, "dims": {}, "keywords": [], "topics": []}'}}],
+                                         "usage": {"prompt_tokens": 100, "completion_tokens": 20}})
+
+    real = httpx.Client
+
+    class Patched(real):
+        def __init__(self, *a, **k):
+            k["transport"] = httpx.MockTransport(handler)
+            super().__init__(*a, **k)
+
+    monkeypatch.setattr(httpx, "Client", Patched)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
+    from reprohub import repo
+
+    llm = LLM(settings, conn)
+    v = {"source_name": "s", "tier": 1, "kind": "paper", "title": "t", "authors": "", "journal": "", "published": "", "summary": "same text", "matched_topics": "", "preference_labels": "", "topic_slugs": ""}
+    r1 = llm.run("score", v)
+    r2 = llm.run("score", v)
+    r3 = llm.run("score", v, use_cache=False)
+    r4 = llm.run("score", {**v, "summary": "different"})
+    assert calls["n"] == 3 and r1.cached is False and r2.cached is True and r3.cached is False and r4.cached is False
+    assert repo.cache_stats(conn)["hits"] == 1 and repo.cache_stats(conn)["entries"] == 2
+    assert repo.llm_stats(conn)["by_provider"][0]["cached"] == 1
+    # 模拟输出永不缓存
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
+    m = LLM(settings, conn)
+    m.run("score", v, context={"topic_score": 1})
+    assert repo.cache_stats(conn)["entries"] == 2
+
+
+def test_upgrade_noop_in_mock_mode_and_query(settings, seeded):
+    from reprohub import repo
+    from reprohub.pipeline.score import process_new, upgrade_mock_scores
+
+    conn = seeded
+    llm = LLM(settings, conn)
+    process_new(settings, conn, llm, logger=lambda m: None)
+    assert repo.counts(conn)["mock_scored"] >= 10
+    assert upgrade_mock_scores(settings, conn, llm, logger=lambda m: None)["processed"] == 0
+    rows = repo.items_mock_scored(conn, days=45, limit=5)
+    assert len(rows) == 5 and rows[0]["selected"] == 1
+
+
+def test_rate_limiter_blocks_after_window_filled():
+    import time
+    from reprohub.llm.openai_compat import RateLimiter, get_limiter
+
+    lim = RateLimiter(2, 0.5)
+    t = time.monotonic()
+    lim.acquire(); lim.acquire()
+    assert time.monotonic() - t < 0.1
+    lim.acquire()  # 第三次需等待窗口滑过
+    assert time.monotonic() - t >= 0.45
+    assert get_limiter("x", None) is None and get_limiter("x", {"requests": 3, "per_seconds": 10}) is get_limiter("x", {"requests": 3, "per_seconds": 10})
+
+
+def test_cli_provider_beats_saved_model_with_other_prefix(settings, conn):
+    """kv 覆盖里 model 带 x666/ 前缀时，CLI --provider deepseek 必须赢（曾导致批量重评误走 Grok）。"""
+    set_overrides(conn, provider="x666", model="x666/grok-4.7", effort="high")
+    set_process_overrides(provider="deepseek")
+    try:
+        c = LLM(settings, conn).choice_for("score")
+        assert (c.provider, c.model, c.effort, c.sources["provider"]) == ("deepseek", None, "high", "cli")
+    finally:
+        set_process_overrides(provider=None)
+        clear_overrides(conn)

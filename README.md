@@ -78,6 +78,8 @@ reprohub llm status                各步骤实际使用的提供商/模型/强�
 reprohub llm test [--all] [--provider P] [--model M] [--effort E]   真实调用一次，报告延迟与 tokens
 reprohub llm set --provider P --model M --effort E                   保存运行时覆盖
 reprohub llm clear                 清除运行时覆盖
+reprohub llm cache [--clear] [--task T]   模型输出缓存统计/清理
+reprohub upgrade [--limit N]       用真实模型重评仍是模拟评分的条目
 reprohub llm models [--provider P] 列出已知模型与端点返回的模型
 reprohub --provider x666 --effort high edition weekly                任意命令前加全局标志 = 本次临时覆盖
 reprohub demo-seed                 写入离线演示样例
@@ -109,7 +111,7 @@ reprohub/
   push/        channels（10 种渠道）  dispatcher（规则）
   web/         app.py  views.py  api.py  feeds.py  templates/  static/
   scheduler.py  cli.py  demo.py
-tests/         pytest，离线（50 个用例）
+tests/         pytest，离线（54 个用例）
 data/          SQLite、推送 outbox（git 忽略）
 ```
 
@@ -132,6 +134,10 @@ data/          SQLite、推送 outbox（git 忽略）
 - 思考强度统一为 `off / low / medium / high`。每个提供商在 `config/site.yaml → llm.providers.<key>.reasoning` 声明映射：`style: openai` 发 `reasoning_effort`（`off` 时可追加 DeepSeek 的 `thinking: {type: disabled}`）；`style: custom` 按等级写请求体（如通义 `enable_thinking` + `thinking_budget`）；`style: none` 忽略。
 - 默认分配：`prescreen` / `cluster` 用 `off`（二元判断，越快越好），`score` 用 `low`，`interpret` / `digest` 用 `medium`。
 - 思考型模型的 `max_tokens` 通常同时覆盖推理与正文，解读/总述步骤默认给到 8000 / 6000；输出被截断时会报明确错误而不是解析失败。
+- **缓存**：真实模型的输出按「任务 + 提示词内容」哈希缓存在 `llm_cache` 表，同一篇文章再次评分/解读不再花 token；条目页「重新生成」与 `interpret --force` 绕过缓存。模拟输出永不缓存。`reprohub llm cache [--clear]` 查看/清理。
+- **模拟 → 真实升级**：曾在无 key 时评过的条目带 `is_mock`，一旦有真实提供商，`process`/`pipeline` 会自动按「已入选 › 偏好高 › 新发表」顺序重评（每轮上限 `selection.yaml → scoring.upgrade_mock_limit`，回溯 `upgrade_mock_days` 天），模拟解读随之作废重做；也可手动 `reprohub upgrade [--limit N]` 或后台「升级模拟评分」。
+- **限速**：提供商可配 `rate_limit: { requests: 25, per_seconds: 300 }`（x666.me 网关默认如此），滑动窗口、跨线程共享，超出自动等待而不是撞 429。
+- **并发**：评分步骤多线程（`site.yaml → llm.concurrency`，默认 4；环境变量 `REPROHUB_LLM_CONCURRENCY` 覆盖），模拟模式自动为 1。
 - 新增提供商只需在 `providers` 下加一段（base_url、api_key_env、默认 model、models 列表、reasoning），再到 `.env` 填 key；`reprohub llm test --provider <key>` 立即验证。
 - YAML 1.1 会把裸 `off` / `on` 解析成布尔值，配置里的 `"off"` 请保留引号。
 

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "reprohub",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["-m", "reprohub", "serve", "--port", "8008"],
+      "port": 8008
+    }
+  ]
+}

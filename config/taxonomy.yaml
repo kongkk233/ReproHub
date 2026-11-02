@@ -1,0 +1,921 @@
+# 领域分类法：覆盖生殖医学与辅助生殖全领域。
+# 每个主题的 keywords 用于规则匹配（英文按词边界、中文按子串），命中标题 ×3、正文 ×1。
+# 模型评分/解读时也会把主题列表作为上下文。slug 用于 URL 与 API。
+groups:
+  - { key: basic,    name: 基础研究 }
+  - { key: clinical, name: 临床与技术 }
+  - { key: cross,    name: 交叉与方法 }
+  - { key: society,  name: 社会与产业 }
+
+topics:
+  - slug: early-embryo
+    name: 早期胚胎发育与胚胎多组学
+    name_en: Early embryo development & embryo multi-omics
+    group: basic
+    keywords:
+      - preimplantation embryo
+      - preimplantation development
+      - early embryo
+      - early embryos
+      - early embryonic development
+      - zygotic genome activation
+      - ZGA
+      - maternal-to-zygotic transition
+      - maternal to zygotic
+      - zygote
+      - zygotes
+      - 2-cell
+      - two-cell
+      - 4-cell
+      - 8-cell
+      - eight-cell
+      - morula
+      - compaction
+      - blastocyst
+      - blastocysts
+      - blastoid
+      - blastoids
+      - inner cell mass
+      - trophectoderm
+      - epiblast
+      - hypoblast
+      - primitive endoderm
+      - lineage specification
+      - first lineage
+      - totipotency
+      - totipotent
+      - naive pluripotency
+      - pluripotency
+      - embryo transcriptome
+      - embryonic transcriptome
+      - embryo proteome
+      - embryonic proteome
+      - embryo epigenome
+      - embryo methylome
+      - imprinting
+      - imprinted gene
+      - genomic imprinting
+      - X chromosome inactivation
+      - gastrulation
+      - gastruloid
+      - gastruloids
+      - embryo model
+      - embryo models
+      - embryo-like
+      - stem cell-derived embryo
+      - synthetic embryo
+      - post-implantation embryo
+      - peri-implantation
+      - 早期胚胎
+      - 植入前胚胎
+      - 合子基因组激活
+      - 囊胚
+      - 桑椹胚
+      - 滋养外胚层
+      - 内细胞团
+      - 胚胎模型
+      - 类囊胚
+      - 全能性
+
+  - slug: oocyte
+    name: 卵母细胞与卵泡生物学
+    name_en: Oocyte & follicle biology
+    group: basic
+    keywords:
+      - oocyte
+      - oocytes
+      - oogenesis
+      - folliculogenesis
+      - follicle
+      - follicles
+      - follicular
+      - primordial follicle
+      - antral follicle
+      - granulosa
+      - cumulus
+      - theca
+      - meiosis
+      - meiotic
+      - spindle
+      - germinal vesicle
+      - GV oocyte
+      - MII oocyte
+      - metaphase II
+      - oocyte maturation
+      - in vitro maturation
+      - IVM
+      - oocyte quality
+      - oocyte competence
+      - ovarian reserve
+      - ovary
+      - ovarian
+      - ovaries
+      - polar body
+      - aneuploid oocyte
+      - 卵母细胞
+      - 卵子
+      - 卵泡
+      - 颗粒细胞
+      - 卵丘
+      - 减数分裂
+      - 卵巢
+
+  - slug: male
+    name: 精子与男性生殖
+    name_en: Sperm & male reproduction
+    group: basic
+    keywords:
+      - sperm
+      - spermatozoa
+      - spermatogenesis
+      - spermatogonia
+      - spermatogonial
+      - spermatid
+      - spermatocyte
+      - testis
+      - testes
+      - testicular
+      - Sertoli
+      - Leydig
+      - epididymis
+      - epididymal
+      - semen
+      - seminal
+      - azoospermia
+      - oligozoospermia
+      - asthenozoospermia
+      - teratozoospermia
+      - male infertility
+      - male factor
+      - varicocele
+      - DNA fragmentation
+      - sperm DNA
+      - Y chromosome
+      - andrology
+      - andrological
+      - capacitation
+      - acrosome
+      - 精子
+      - 精液
+      - 生精
+      - 睾丸
+      - 附睾
+      - 男性不育
+      - 无精子症
+      - 少弱精
+
+  - slug: art-clinical
+    name: 辅助生殖技术与临床结局
+    name_en: ART clinical practice & outcomes
+    group: clinical
+    keywords:
+      - IVF
+      - in vitro fertilization
+      - in vitro fertilisation
+      - ICSI
+      - intracytoplasmic sperm injection
+      - assisted reproduction
+      - assisted reproductive
+      - ART cycle
+      - ART cycles
+      - embryo transfer
+      - frozen embryo transfer
+      - fresh embryo transfer
+      - freeze-all
+      - FET
+      - blastocyst transfer
+      - single embryo transfer
+      - live birth
+      - live birth rate
+      - clinical pregnancy
+      - cumulative live birth
+      - ongoing pregnancy
+      - implantation rate
+      - ovarian stimulation
+      - controlled ovarian
+      - gonadotropin
+      - gonadotrophin
+      - GnRH
+      - antagonist protocol
+      - agonist protocol
+      - trigger
+      - luteal phase support
+      - luteal support
+      - progesterone supplementation
+      - OHSS
+      - ovarian hyperstimulation
+      - poor responder
+      - poor responders
+      - poor ovarian response
+      - POSEIDON
+      - recurrent implantation failure
+      - implantation failure
+      - intrauterine insemination
+      - IUI
+      - infertility
+      - infertile
+      - subfertility
+      - subfertile
+      - fertility treatment
+      - fertility clinic
+      - egg donation
+      - oocyte donation
+      - donor oocyte
+      - sperm donation
+      - surrogacy
+      - gestational carrier
+      - 试管婴儿
+      - 体外受精
+      - 胚胎移植
+      - 冻胚
+      - 鲜胚
+      - 活产率
+      - 临床妊娠
+      - 促排卵
+      - 黄体支持
+      - 卵巢过度刺激
+      - 不孕
+      - 不育
+      - 辅助生殖
+      - 人工授精
+      - 供卵
+
+  - slug: pgt
+    name: 植入前遗传学检测
+    name_en: Preimplantation genetic testing
+    group: clinical
+    keywords:
+      - PGT
+      - PGT-A
+      - PGT-M
+      - PGT-SR
+      - PGS
+      - preimplantation genetic
+      - aneuploidy screening
+      - embryo aneuploidy
+      - mosaic embryo
+      - mosaic embryos
+      - mosaicism
+      - euploid
+      - euploidy
+      - aneuploid embryo
+      - trophectoderm biopsy
+      - embryo biopsy
+      - blastomere biopsy
+      - niPGT
+      - non-invasive PGT
+      - noninvasive preimplantation
+      - spent culture medium
+      - spent medium
+      - cell-free DNA
+      - cfDNA
+      - embryo genome
+      - embryo sequencing
+      - polygenic embryo
+      - embryo selection
+      - 植入前遗传学
+      - 胚胎活检
+      - 非整倍体
+      - 嵌合体胚胎
+      - 整倍体
+
+  - slug: embryology-lab
+    name: 胚胎学与实验室技术
+    name_en: Embryology & laboratory technology
+    group: clinical
+    keywords:
+      - embryo culture
+      - culture medium
+      - culture media
+      - vitrification
+      - vitrified
+      - cryopreservation
+      - cryopreserved
+      - slow freezing
+      - warming
+      - thawing
+      - time-lapse
+      - timelapse
+      - morphokinetic
+      - morphokinetics
+      - embryo grading
+      - embryo morphology
+      - Gardner
+      - embryo quality
+      - embryo scoring
+      - embryo assessment
+      - incubator
+      - embryoscope
+      - embryologist
+      - embryology laboratory
+      - IVF laboratory
+      - laboratory KPI
+      - Vienna consensus
+      - assisted hatching
+      - oocyte vitrification
+      - egg freezing
+      - sperm selection
+      - microfluidic
+      - PICSI
+      - IMSI
+      - 玻璃化
+      - 冷冻保存
+      - 胚胎培养
+      - 延时摄影
+      - 胚胎评分
+      - 胚胎形态
+      - 实验室
+
+  - slug: endometrium
+    name: 子宫内膜与植入
+    name_en: Endometrium & implantation
+    group: basic
+    keywords:
+      - endometrium
+      - endometrial
+      - decidualization
+      - decidua
+      - decidual
+      - implantation window
+      - window of implantation
+      - endometrial receptivity
+      - receptivity
+      - ERA test
+      - thin endometrium
+      - Asherman
+      - intrauterine adhesion
+      - endometriosis
+      - adenomyosis
+      - uterine
+      - uterus
+      - myometrium
+      - fibroid
+      - fibroids
+      - leiomyoma
+      - trophoblast
+      - trophoblast invasion
+      - placenta
+      - placental
+      - placentation
+      - maternal-fetal interface
+      - maternal–fetal interface
+      - spiral artery
+      - stromal cell
+      - 子宫内膜
+      - 蜕膜
+      - 植入窗
+      - 容受性
+      - 子宫内膜异位
+      - 子宫腺肌
+      - 滋养层
+      - 胎盘
+      - 子宫
+
+  - slug: repro-endo
+    name: 生殖内分泌
+    name_en: Reproductive endocrinology
+    group: clinical
+    keywords:
+      - PCOS
+      - polycystic ovary
+      - polycystic ovarian
+      - hyperandrogenism
+      - anovulation
+      - anovulatory
+      - ovulation
+      - ovulatory
+      - AMH
+      - anti-Müllerian
+      - anti-Mullerian
+      - antimullerian
+      - FSH
+      - follicle-stimulating hormone
+      - LH surge
+      - luteinizing hormone
+      - estradiol
+      - oestradiol
+      - progesterone
+      - premature ovarian insufficiency
+      - POI
+      - primary ovarian insufficiency
+      - diminished ovarian reserve
+      - DOR
+      - hypothalamic amenorrhea
+      - amenorrhea
+      - amenorrhoea
+      - hyperprolactinemia
+      - prolactin
+      - menstrual cycle
+      - menstruation
+      - menopause
+      - perimenopause
+      - kisspeptin
+      - hypothalamic-pituitary-gonadal
+      - HPG axis
+      - reproductive endocrinology
+      - letrozole
+      - clomiphene
+      - 多囊卵巢
+      - 排卵
+      - 卵巢早衰
+      - 卵巢功能不全
+      - 卵巢储备
+      - 闭经
+      - 月经
+      - 绝经
+      - 生殖内分泌
+
+  - slug: repro-genetics
+    name: 生殖遗传与表观遗传
+    name_en: Reproductive genetics & epigenetics
+    group: basic
+    keywords:
+      - genetic cause of infertility
+      - genetics of infertility
+      - infertility gene
+      - infertility genes
+      - gene variant
+      - pathogenic variant
+      - whole-exome
+      - whole exome
+      - GWAS
+      - genome-wide association
+      - epigenetic inheritance
+      - transgenerational
+      - intergenerational
+      - germline mutation
+      - de novo mutation
+      - DNA methylation
+      - methylome
+      - histone modification
+      - chromatin accessibility
+      - ATAC-seq
+      - 3D genome
+      - chromatin architecture
+      - imprinting disorder
+      - Beckwith-Wiedemann
+      - Angelman
+      - meiotic recombination
+      - 遗传
+      - 表观遗传
+      - 甲基化
+      - 染色质
+      - 突变
+
+  - slug: ivg-stem
+    name: 生殖干细胞与体外配子发生
+    name_en: Germline stem cells & in vitro gametogenesis
+    group: basic
+    keywords:
+      - in vitro gametogenesis
+      - IVG
+      - primordial germ cell
+      - primordial germ cells
+      - PGC
+      - PGCs
+      - PGCLC
+      - PGCLCs
+      - germ cell
+      - germ cells
+      - germline
+      - germ line
+      - oocyte-like cell
+      - oocyte-like cells
+      - sperm-like
+      - spermatogonial stem cell
+      - spermatogonial stem cells
+      - SSC
+      - SSCs
+      - ovarian organoid
+      - testicular organoid
+      - artificial gamete
+      - artificial gametes
+      - reconstituted ovary
+      - germline stem cell
+      - 生殖细胞
+      - 原始生殖细胞
+      - 体外配子
+      - 生殖干细胞
+      - 精原干细胞
+
+  - slug: early-pregnancy
+    name: 早期妊娠与流产
+    name_en: Early pregnancy & pregnancy loss
+    group: clinical
+    keywords:
+      - miscarriage
+      - miscarriages
+      - pregnancy loss
+      - recurrent pregnancy loss
+      - recurrent miscarriage
+      - RPL
+      - spontaneous abortion
+      - early pregnancy
+      - first trimester
+      - ectopic pregnancy
+      - products of conception
+      - molar pregnancy
+      - hydatidiform
+      - antiphospholipid
+      - biochemical pregnancy
+      - pregnancy outcome
+      - pregnancy outcomes
+      - preterm birth
+      - preeclampsia
+      - pre-eclampsia
+      - birth weight
+      - perinatal outcome
+      - perinatal outcomes
+      - neonatal outcome
+      - congenital anomal
+      - 流产
+      - 复发性流产
+      - 早期妊娠
+      - 异位妊娠
+      - 宫外孕
+      - 妊娠结局
+      - 早产
+      - 子痫
+
+  - slug: fertility-preservation
+    name: 生育力保存
+    name_en: Fertility preservation
+    group: clinical
+    keywords:
+      - fertility preservation
+      - oncofertility
+      - ovarian tissue cryopreservation
+      - ovarian tissue
+      - testicular tissue
+      - oocyte cryopreservation
+      - oocyte banking
+      - social egg freezing
+      - elective egg freezing
+      - gonadotoxic
+      - gonadotoxicity
+      - chemotherapy and fertility
+      - cancer survivor
+      - transgender
+      - gender-affirming
+      - 生育力保存
+      - 卵巢组织冷冻
+      - 卵子冷冻
+      - 冻卵
+      - 肿瘤生育
+
+  - slug: repro-immunology
+    name: 生殖免疫
+    name_en: Reproductive immunology
+    group: basic
+    keywords:
+      - reproductive immunology
+      - uterine NK
+      - uNK
+      - natural killer cell
+      - decidual NK
+      - regulatory T cell
+      - Treg
+      - HLA-G
+      - HLA
+      - immune tolerance
+      - maternal tolerance
+      - maternal immune
+      - autoimmune
+      - autoimmunity
+      - antinuclear antibod
+      - immunotherapy
+      - intralipid
+      - intravenous immunoglobulin
+      - IVIG
+      - macrophage
+      - 生殖免疫
+      - 免疫耐受
+      - 自然杀伤
+      - NK细胞
+      - 免疫治疗
+
+  - slug: repro-microbiome
+    name: 生殖道微生物组
+    name_en: Reproductive tract microbiome
+    group: basic
+    keywords:
+      - vaginal microbiome
+      - vaginal microbiota
+      - endometrial microbiome
+      - endometrial microbiota
+      - uterine microbiome
+      - seminal microbiome
+      - semen microbiome
+      - Lactobacillus
+      - bacterial vaginosis
+      - chronic endometritis
+      - endometritis
+      - reproductive tract microbi
+      - genital microbi
+      - 微生物组
+      - 菌群
+      - 阴道微生态
+      - 子宫内膜炎
+
+  - slug: contraception-health
+    name: 避孕与生殖健康
+    name_en: Contraception & reproductive health
+    group: society
+    keywords:
+      - contraception
+      - contraceptive
+      - contraceptives
+      - male contraceptive
+      - intrauterine device
+      - IUD
+      - emergency contraception
+      - abortion
+      - medical abortion
+      - mifepristone
+      - family planning
+      - reproductive health
+      - sexual and reproductive
+      - reproductive rights
+      - fertility rate
+      - fertility rates
+      - total fertility rate
+      - birth rate
+      - childbearing
+      - 避孕
+      - 生殖健康
+      - 计划生育
+      - 生育率
+      - 人工流产
+      - 出生率
+
+  - slug: repro-tox
+    name: 生殖毒理与环境暴露
+    name_en: Reproductive toxicology & environment
+    group: cross
+    keywords:
+      - endocrine disruptor
+      - endocrine disrupting
+      - endocrine-disrupting
+      - bisphenol
+      - BPA
+      - phthalate
+      - phthalates
+      - microplastic
+      - microplastics
+      - nanoplastic
+      - PFAS
+      - air pollution
+      - heavy metal
+      - pesticide
+      - reproductive toxicity
+      - reproductive toxicology
+      - gonadotoxic
+      - obesity and fertility
+      - body mass index
+      - BMI
+      - smoking
+      - alcohol
+      - diet and fertility
+      - lifestyle
+      - heat stress
+      - 内分泌干扰
+      - 双酚
+      - 邻苯二甲酸
+      - 微塑料
+      - 生殖毒性
+      - 环境暴露
+      - 肥胖
+
+  - slug: repro-aging
+    name: 生殖衰老
+    name_en: Reproductive aging
+    group: basic
+    keywords:
+      - ovarian aging
+      - ovarian ageing
+      - reproductive aging
+      - reproductive ageing
+      - maternal age
+      - advanced maternal age
+      - advanced paternal age
+      - paternal age
+      - oocyte aging
+      - oocyte ageing
+      - senescence
+      - senescent
+      - telomere
+      - NAD+
+      - nicotinamide
+      - rapamycin
+      - mitochondrial dysfunction
+      - mitochondria
+      - mitochondrial
+      - reproductive lifespan
+      - 卵巢衰老
+      - 生殖衰老
+      - 高龄
+      - 线粒体
+      - 衰老
+
+  - slug: ai-compute
+    name: AI 与计算生殖医学
+    name_en: AI & computational reproductive medicine
+    group: cross
+    keywords:
+      - machine learning
+      - deep learning
+      - artificial intelligence
+      - neural network
+      - convolutional
+      - large language model
+      - LLM
+      - ChatGPT
+      - prediction model
+      - predictive model
+      - nomogram
+      - computer vision
+      - image analysis
+      - automated annotation
+      - algorithm
+      - digital
+      - 人工智能
+      - 机器学习
+      - 深度学习
+      - 预测模型
+      - 大模型
+      - 算法
+
+  - slug: ethics-policy
+    name: 伦理、法规与指南
+    name_en: Ethics, regulation & guidelines
+    group: society
+    keywords:
+      - ethics
+      - ethical
+      - bioethics
+      - regulation
+      - regulatory
+      - legislation
+      - legal
+      - guideline
+      - guidelines
+      - committee opinion
+      - practice committee
+      - consensus
+      - position statement
+      - ESHRE
+      - ASRM
+      - HFEA
+      - ISSCR
+      - 14-day rule
+      - 14 day rule
+      - embryo research
+      - germline editing
+      - heritable genome editing
+      - gene editing
+      - CRISPR
+      - mitochondrial replacement
+      - mitochondrial donation
+      - three-parent
+      - informed consent
+      - 伦理
+      - 法规
+      - 指南
+      - 共识
+      - 专家共识
+      - 基因编辑
+      - 线粒体替代
+      - 监管
+
+  - slug: industry
+    name: 产业、机构与政策动态
+    name_en: Industry, institutions & policy
+    group: society
+    keywords:
+      - fertility industry
+      - fertility market
+      - IVF market
+      - fertility startup
+      - fertility company
+      - fertility benefit
+      - fertility benefits
+      - insurance coverage
+      - reimbursement
+      - FDA approval
+      - FDA clearance
+      - CE mark
+      - NMPA
+      - funding round
+      - Series A
+      - Series B
+      - acquisition
+      - acquires
+      - merger
+      - IPO
+      - clinic chain
+      - fertility clinics
+      - 辅助生殖纳入医保
+      - 医保
+      - 生殖中心
+      - 产业
+      - 融资
+      - 获批
+      - 医疗器械
+      - 三孩
+      - 生育支持
+      - 生育政策
+
+  - slug: animal-models
+    name: 动物模型与比较生殖
+    name_en: Animal models & comparative reproduction
+    group: basic
+    weight: 0.8
+    keywords:
+      - mouse embryo
+      - mouse embryos
+      - murine embryo
+      - bovine embryo
+      - bovine embryos
+      - porcine embryo
+      - porcine embryos
+      - ovine
+      - caprine
+      - equine
+      - primate embryo
+      - monkey embryo
+      - macaque
+      - cynomolgus
+      - zebrafish
+      - Drosophila
+      - C. elegans
+      - Xenopus
+      - livestock reproduction
+      - cloning
+      - somatic cell nuclear transfer
+      - SCNT
+      - nuclear transfer
+      - knockout mice
+      - 小鼠胚胎
+      - 牛胚胎
+      - 猪胚胎
+      - 猴
+      - 体细胞核移植
+      - 克隆
+
+  - slug: omics-methods
+    name: 多组学与方法学
+    name_en: Multi-omics & methodology
+    group: cross
+    keywords:
+      - transcriptome
+      - transcriptomic
+      - transcriptomics
+      - RNA-seq
+      - RNA sequencing
+      - scRNA-seq
+      - single-cell RNA
+      - single cell RNA
+      - single-cell
+      - single cell
+      - Smart-seq
+      - 10x Genomics
+      - proteome
+      - proteomic
+      - proteomics
+      - mass spectrometry
+      - LC-MS
+      - phosphoproteom
+      - ubiquitinom
+      - acetylom
+      - metabolome
+      - metabolomic
+      - metabolomics
+      - lipidome
+      - lipidomic
+      - lipidomics
+      - multi-omics
+      - multiomics
+      - multi-omic
+      - integrative analysis
+      - integrated analysis
+      - spatial transcriptomics
+      - spatial omics
+      - epigenomic
+      - epigenomics
+      - CUT&Tag
+      - ChIP-seq
+      - Hi-C
+      - low-input
+      - ultra-low input
+      - trace-level
+      - translatome
+      - Ribo-seq
+      - 转录组
+      - 蛋白质组
+      - 蛋白组
+      - 代谢组
+      - 多组学
+      - 单细胞
+      - 质谱
+      - 空间转录组
+      - 表观基因组

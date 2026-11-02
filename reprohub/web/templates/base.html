@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if title %}{{ title }} · {% endif %}{{ site.name_zh }}</title>
+  <meta name="description" content="{{ site.tagline }}">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.name_zh }} 精选" href="/feed.xml">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.name_zh }} 日报/周报/月报" href="/feed/editions.xml">
+  <script>(function(){var t=localStorage.getItem("rh-theme");if(t)document.documentElement.setAttribute("data-theme",t);})();</script>
+</head>
+<body>
+<header>
+  <a class="title" href="/"><h1>{{ site.name_zh }} <span class="muted small">{{ site.name }}</span></h1></a>
+  <p class="tagline">{{ site.tagline }}</p>
+  <nav>
+    {% set nav = [("/", "精选"), ("/all", "全部"), ("/papers", "文献"), ("/news", "资讯"), ("/stories", "热点"), ("/editions", "日报"), ("/topics", "主题"), ("/library", "阅读")] %}
+    {% for href, label in nav %}<a href="{{ href }}" {% if path == href or (href != '/' and path.startswith(href)) %}class="active"{% endif %}>{{ label }}</a>{% endfor %}
+    <span class="sep">|</span>
+    <a href="/sources">来源</a><a href="/search">搜索</a><a href="/about">关于</a>
+    <button id="theme-toggle" class="theme-toggle" type="button" title="切换深浅色">深色</button>
+  </nav>
+  {% set st = llm_status() %}
+  {% if st.mode == 'mock' %}
+  <div class="notice">⚠ 当前为 <b>模拟模式</b>（{{ st.reason }}）：评分、解读与周报总述均为规则占位内容，<b>未调用任何模型</b>。在 <code>.env</code> 设置 <code>DEEPSEEK_API_KEY</code>（或其他提供商）后重新运行流水线即可。</div>
+  {% elif st.mode == 'error' %}
+  <div class="notice">✗ LLM 配置错误：{{ st.reason }}</div>
+  {% endif %}
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>
+  {% for l in site.footer_links %}<a href="{{ l.href }}">{{ l.text }}</a>{% endfor %}
+  <br>
+  <span class="small">{{ site.name }} v{{ version }} · LLM：{% if st.mode == 'live' %}{{ st.label }} / {{ st.model }}{% elif st.mode == 'mock' %}<span class="badge mock">模拟模式</span>{% else %}错误{% endif %}
+  {% if owner %}· <form method="post" action="/logout" class="inline-form"><button class="theme-toggle" type="submit">退出</button></form>{% endif %}</span>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

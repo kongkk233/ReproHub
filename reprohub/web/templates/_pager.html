@@ -1,0 +1,11 @@
+{# 分页：期望 page, pages, total, path, query #}
+{% if pages and pages > 1 %}
+{% set q = dict(query) %}
+<div class="pager">
+  <span>{% if page > 1 %}{% if q.update({'page': page - 1}) %}{% endif %}<a href="{{ path }}?{{ q|urlencode }}">← 上一页</a>{% endif %}</span>
+  <span>第 {{ page }} / {{ pages }} 页 · 共 {{ total }} 条</span>
+  <span>{% if page < pages %}{% if q.update({'page': page + 1}) %}{% endif %}<a href="{{ path }}?{{ q|urlencode }}">下一页 →</a>{% endif %}</span>
+</div>
+{% elif total is defined %}
+<div class="pager"><span></span><span>共 {{ total }} 条</span><span></span></div>
+{% endif %}

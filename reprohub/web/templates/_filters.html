@@ -1,0 +1,32 @@
+{# 过滤栏：期望变量 filters, path #}
+{% set q = query %}
+{% macro link(param, value, label) -%}
+  {% set cur = q.get(param, '') %}
+  {% set newq = dict(q) %}
+  {% if newq.update({param: value}) %}{% endif %}
+  {% if newq.update({'page': '1'}) %}{% endif %}
+  {% set qs = [] %}
+  {% for k, v in newq.items() if v %}{% if qs.append(k ~ '=' ~ (v|urlencode)) %}{% endif %}{% endfor %}
+  <a href="{{ path }}?{{ qs|join('&') }}" class="{% if cur == value %}on{% endif %}">{{ label }}</a>
+{%- endmacro %}
+<div class="filters">
+  {{ link('unread', '', '全部') }}{{ link('unread', '1', '只看未读') }}
+  <span class="muted">·</span>
+  {{ link('order', '', '按时间') }}{{ link('order', 'score', '按评分') }}{{ link('order', 'preference', '按偏好') }}
+  {% if not filters.kinds %}<span class="muted">·</span>
+  {{ link('kind', '', '所有类型') }}{{ link('kind', 'paper', '文献') }}{{ link('kind', 'preprint', '预印本') }}{{ link('kind', 'news', '资讯') }}{% endif %}
+  <span class="muted">·</span>
+  {{ link('days', '', '不限') }}{{ link('days', '7', '7天') }}{{ link('days', '30', '30天') }}
+  <form method="get" action="{{ path }}">
+    {% for k, v in q.items() if k not in ('topic', 'page', 'q') and v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    {% if not filters.get('topic') or path == '/' or path == '/all' or path == '/papers' or path == '/news' %}
+    <select name="topic" onchange="this.form.submit()">
+      <option value="">所有主题</option>
+      {% for g in topic_groups %}<optgroup label="{{ g.name }}">
+        {% for t in topics if t.group == g.key %}<option value="{{ t.slug }}" {% if q.get('topic') == t.slug %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+      </optgroup>{% endfor %}
+    </select>
+    {% endif %}
+    <input type="search" name="q" value="{{ q.get('q', '') }}" placeholder="搜索标题和摘要">
+  </form>
+</div>

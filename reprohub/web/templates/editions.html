@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>日报 · 周报 · 月报</h2>
+<div class="tabs">
+  <a href="/editions" class="{% if not kind %}on{% endif %}">全部</a>
+  <a href="/editions?kind=daily" class="{% if kind == 'daily' %}on{% endif %}">日报</a>
+  <a href="/editions?kind=weekly" class="{% if kind == 'weekly' %}on{% endif %}">周报</a>
+  <a href="/editions?kind=monthly" class="{% if kind == 'monthly' %}on{% endif %}">月报</a>
+  <a href="/feed/editions.xml" class="muted">RSS</a>
+</div>
+<p class="muted small">日报每天 {{ site.get('editions', {}).get('daily', {}).get('time', '08:00') }} 由规则编纂（不调用模型）；周报（周一）与月报（1 日）从日报汇编，模型只写总述与栏目导读。</p>
+<ul class="blog-posts">
+{% for e in editions %}
+  <li><span class="d">{{ e.date_key }}</span><span><a href="/editions/{{ e.kind }}/{{ e.date_key }}">{{ e.title }}</a> <span class="muted small">{{ e.item_count }} 条{% if e.is_mock %} · <span class="badge mock">模拟总述</span>{% endif %}</span></span></li>
+{% else %}
+  <li class="muted">尚无版次。{% if owner %}在 <a href="/admin">后台</a> 生成今日日报。{% endif %}</li>
+{% endfor %}
+</ul>
+{% endblock %}

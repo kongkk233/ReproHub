@@ -1,0 +1,7 @@
+{# 按日期分组的条目列表：期望 groups #}
+{% for g in groups %}
+<h2 class="date">{{ rel_date(g['items'][0].published_at or g['items'][0].fetched_at) }} <small>{{ g['items']|length }} 条</small></h2>
+{% for it in g['items'] %}{% include "_item.html" %}{% endfor %}
+{% else %}
+<p class="muted">暂无内容。{% if owner %}到 <a href="/admin">后台</a> 运行一次流水线，或在终端执行 <code>reprohub pipeline</code>。{% endif %}</p>
+{% endfor %}

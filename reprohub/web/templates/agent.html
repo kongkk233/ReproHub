@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>接入：RSS / API / Agent</h2>
+{% set base = site.base_url %}
+<h3>RSS</h3>
+<ul class="small">
+  <li>精选：<code>{{ base }}/feed.xml</code></li>
+  <li>全部已评分：<code>{{ base }}/feed/all.xml</code></li>
+  <li>文献与预印本：<code>{{ base }}/feed/papers.xml</code> · 资讯：<code>{{ base }}/feed/news.xml</code></li>
+  <li>重点偏好命中：<code>{{ base }}/feed/preference.xml</code></li>
+  <li>按主题：<code>{{ base }}/feed/topic/&lt;slug&gt;.xml</code>（如 <code>/feed/topic/early-embryo.xml</code>）</li>
+  <li>日报/周报/月报：<code>{{ base }}/feed/editions.xml</code>，或 <code>/feed/editions/daily.xml</code></li>
+</ul>
+
+<h3>JSON API（只读公开）</h3>
+<p class="small">OpenAPI：<a href="/openapi.json">/openapi.json</a> · 交互文档：<a href="/docs">/docs</a> · <a href="/llms.txt">llms.txt</a></p>
+<pre><code>GET {{ base }}/api/v1/status                 # 运行状态、LLM 模式（mock/live）
+GET {{ base }}/api/v1/items?selected=1&amp;days=7&amp;topic=early-embryo&amp;order=score
+GET {{ base }}/api/v1/items/{id}             # 含解读 markdown 与 is_mock
+GET {{ base }}/api/v1/search?q=blastocyst%20proteome
+GET {{ base }}/api/v1/stories?days=7
+GET {{ base }}/api/v1/editions?kind=daily
+GET {{ base }}/api/v1/editions/daily/2026-11-02
+GET {{ base }}/api/v1/topics
+GET {{ base }}/api/v1/sources</code></pre>
+<p class="small">每条结果都带 <code>is_mock</code>：为 true 表示该评分/解读由规则占位生成，未调用模型。</p>
+
+<h3>写接口（本机或 ADMIN_PASSWORD）</h3>
+<pre><code>POST {{ base }}/api/v1/reading/{id}          {"status":"read","starred":true,"tags":["ZGA"],"notes":"..."}
+POST {{ base }}/api/v1/items/{id}/interpret  # 生成/重做解读
+POST {{ base }}/api/v1/collections           {"name":"课题A"}
+POST {{ base }}/api/v1/collections/{cid}/items/{id}
+POST {{ base }}/api/v1/admin/run             {"collect":true,"process":true,"force":false}
+# 非本机访问请带请求头 X-Admin-Token: &lt;ADMIN_PASSWORD&gt;</code></pre>
+
+<h3>推送入库（你自己的脚本 → 本站）</h3>
+<pre><code>POST {{ base }}/api/v1/ingest
+Authorization: Bearer &lt;INGEST_TOKEN&gt;
+[{"url":"https://...","title":"...","summary":"...","source":"ingest","doi":"10.…","published_at":"2026-11-02"}]</code></pre>
+
+<h3>给 Agent 的说明（可直接复制）</h3>
+<pre><code>你可以通过 {{ base }}/api/v1 读取「{{ site.name_zh }}」的生殖医学文献精选。
+- 列表：GET /api/v1/items?selected=1&amp;days=7（字段 title_zh/summary_zh 为中文，title/summary 为原文）
+- 详情：GET /api/v1/items/{id}，interpretation.markdown 是结构化中文解读
+- 若 is_mock 为 true，表示该字段来自规则占位，不要当作模型判断引用
+- 主题 slug 见 GET /api/v1/topics；偏好字段 preference_labels 标明是否命中「早期胚胎转录组+蛋白质组」等重点</code></pre>
+{% endblock %}

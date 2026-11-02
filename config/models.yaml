@@ -1,0 +1,9 @@
+# 每个流水线步骤可单独指定提供商与模型（类似 AIHOT 的 site/models.ts）。
+# provider 留空 => 使用 LLM_PROVIDER / site.yaml.llm.default_provider；
+# model 留空 => 使用该提供商的默认模型。
+steps:
+  prescreen:  { provider: "", model: "", temperature: 0.0 }
+  score:      { provider: "", model: "", temperature: 0.2 }
+  interpret:  { provider: "", model: "", temperature: 0.3, max_tokens: 2000 }
+  cluster:    { provider: "", model: "", temperature: 0.0 }
+  digest:     { provider: "", model: "", temperature: 0.4, max_tokens: 1500 }

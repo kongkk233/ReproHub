@@ -1,0 +1,353 @@
+# 数据源。type: pubmed | europepmc | biorxiv | crossref | rss | jsonapi | html_list | push
+# tier: 1=期刊/预印本/官方一手  2=学会/机构/准官方  3=媒体/个人
+# kind: 条目默认类型 paper | preprint | news | guideline | post
+# in_scope_default: 来源本身即领域内（规则判定不会直接拒绝）
+# scope_filter: 入库前先用分类法做领域过滤（用于综合性来源，防止灌入无关内容）
+# interval_minutes: 采集间隔；采集器会根据产出自动在 [interval, 4×interval] 间伸缩
+
+sources:
+  # ------------------------------------------------------------------ PubMed
+  - key: pubmed-embryo-omics
+    name: PubMed · 胚胎/卵母细胞组学
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      reldate_days: 10
+      retmax: 100
+      query: >
+        ("preimplantation embryo*"[tiab] OR blastocyst*[tiab] OR "early embryo*"[tiab]
+         OR "zygotic genome activation"[tiab] OR oocyte*[tiab] OR zygote*[tiab] OR morula[tiab]
+         OR "embryo model*"[tiab] OR blastoid*[tiab])
+        AND (transcriptom*[tiab] OR proteom*[tiab] OR "single-cell"[tiab] OR "single cell"[tiab]
+         OR epigenom*[tiab] OR methylom*[tiab] OR "multi-omic*"[tiab] OR multiomic*[tiab]
+         OR "RNA-seq"[tiab] OR "mass spectrometry"[tiab] OR chromatin[tiab])
+
+  - key: pubmed-art
+    name: PubMed · 辅助生殖临床
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      reldate_days: 7
+      retmax: 150
+      query: >
+        ("in vitro fertilization"[tiab] OR "in vitro fertilisation"[tiab] OR IVF[tiab] OR ICSI[tiab]
+         OR "embryo transfer"[tiab] OR "assisted reproduct*"[tiab] OR "ovarian stimulation"[tiab]
+         OR "frozen embryo"[tiab] OR "live birth"[tiab] OR "intrauterine insemination"[tiab]
+         OR "recurrent implantation failure"[tiab] OR "poor ovarian respon*"[tiab])
+
+  - key: pubmed-gametes
+    name: PubMed · 配子与性腺
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      reldate_days: 7
+      retmax: 120
+      query: >
+        (oogenesis[tiab] OR folliculogenesis[tiab] OR "oocyte maturation"[tiab] OR "ovarian reserve"[tiab]
+         OR spermatogenesis[tiab] OR "male infertility"[tiab] OR azoospermia[tiab] OR "sperm quality"[tiab]
+         OR "sperm DNA"[tiab] OR "primordial germ cell*"[tiab] OR "in vitro gametogenesis"[tiab]
+         OR "spermatogonial stem"[tiab] OR "granulosa cell*"[ti] OR "cumulus cell*"[ti])
+
+  - key: pubmed-uterus-pregnancy
+    name: PubMed · 内膜/植入/早孕
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      reldate_days: 7
+      retmax: 120
+      query: >
+        ("endometrial receptivity"[tiab] OR decidualization[tiab] OR "window of implantation"[tiab]
+         OR "recurrent pregnancy loss"[tiab] OR "recurrent miscarriage"[tiab] OR endometriosis[ti]
+         OR adenomyosis[ti] OR "thin endometrium"[tiab] OR "embryo implantation"[tiab]
+         OR "maternal-fetal interface"[tiab] OR "endometrial microbio*"[tiab] OR "uterine NK"[tiab]
+         OR "chronic endometritis"[tiab])
+
+  - key: pubmed-endo-genetics
+    name: PubMed · 生殖内分泌/遗传/保存
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      reldate_days: 7
+      retmax: 120
+      query: >
+        (PCOS[tiab] OR "polycystic ovar*"[tiab] OR "premature ovarian insufficiency"[tiab]
+         OR "primary ovarian insufficiency"[tiab] OR "anti-Mullerian"[tiab] OR "anti-Müllerian"[tiab]
+         OR "preimplantation genetic"[tiab] OR "PGT-A"[tiab] OR "PGT-M"[tiab] OR "embryo aneuploid*"[tiab]
+         OR "fertility preservation"[tiab] OR "ovarian tissue cryopreservation"[tiab] OR "oocyte vitrification"[tiab]
+         OR "ovarian aging"[tiab] OR "ovarian ageing"[tiab] OR "reproductive aging"[tiab])
+
+  - key: pubmed-core-journals
+    name: PubMed · 核心期刊
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      reldate_days: 7
+      retmax: 200
+      query: >
+        ("Hum Reprod"[ta] OR "Fertil Steril"[ta] OR "Reprod Biomed Online"[ta] OR "Hum Reprod Update"[ta]
+         OR "Mol Hum Reprod"[ta] OR "Biol Reprod"[ta] OR "J Assist Reprod Genet"[ta] OR "Reproduction"[ta]
+         OR "Andrology"[ta] OR "Hum Reprod Open"[ta] OR "Reprod Sci"[ta] OR "Reprod Biol Endocrinol"[ta]
+         OR "F S Rep"[ta] OR "F S Sci"[ta] OR "Front Endocrinol (Lausanne)"[ta] AND reproduct*[tiab])
+
+  # --------------------------------------------------------------- Europe PMC
+  - key: europepmc-preprints
+    name: Europe PMC · 预印本（领域内）
+    type: europepmc
+    tier: 1
+    kind: preprint
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params:
+      days: 10
+      page_size: 100
+      query: >
+        (SRC:PPR) AND (embryo OR embryos OR blastocyst OR oocyte OR oocytes OR "in vitro fertilization"
+         OR IVF OR sperm OR spermatogenesis OR endometrium OR endometrial OR infertility
+         OR "ovarian reserve" OR PCOS OR "germ cell" OR "germ cells" OR placenta OR trophoblast
+         OR "zygotic genome" OR gastrulation)
+
+  # ---------------------------------------------------------------- bioRxiv
+  - key: biorxiv-devbio
+    name: bioRxiv · 发育/细胞/基因组学（领域过滤）
+    type: biorxiv
+    tier: 1
+    kind: preprint
+    enabled: true
+    interval_minutes: 720
+    in_scope_default: false
+    scope_filter: true
+    params:
+      server: biorxiv
+      days: 5
+      max_pages: 8
+      categories: [developmental biology, cell biology, genomics, molecular biology, systems biology, genetics, bioinformatics]
+
+  - key: medrxiv-obgyn
+    name: medRxiv · 妇产科（领域过滤）
+    type: biorxiv
+    tier: 1
+    kind: preprint
+    enabled: true
+    interval_minutes: 720
+    in_scope_default: false
+    scope_filter: true
+    params:
+      server: medrxiv
+      days: 7
+      max_pages: 6
+      categories: [obstetrics and gynecology, genetic and genomic medicine, endocrinology]
+
+  # --------------------------------------------------------------- Crossref（期刊最新上线）
+  - key: crossref-core-journals
+    name: Crossref · 核心期刊新上线
+    type: crossref
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 720
+    in_scope_default: true
+    params:
+      days: 7
+      rows: 60
+      journals:
+        - { issn: "0268-1161", name: Human Reproduction }
+        - { issn: "0015-0282", name: Fertility and Sterility }
+        - { issn: "1472-6483", name: Reproductive BioMedicine Online }
+        - { issn: "1355-4786", name: Human Reproduction Update }
+        - { issn: "1360-9947", name: Molecular Human Reproduction }
+        - { issn: "0006-3363", name: Biology of Reproduction }
+        - { issn: "1058-0468", name: Journal of Assisted Reproduction and Genetics }
+        - { issn: "2399-3529", name: Human Reproduction Open }
+        - { issn: "2047-2919", name: Andrology }
+        - { issn: "1477-7827", name: Reproductive Biology and Endocrinology }
+
+  # -------------------------------------------------------------------- RSS
+  - key: rss-fertstert
+    name: Fertility and Sterility · 当期
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 720
+    in_scope_default: true
+    params: { url: "https://www.fertstert.org/current.rss" }
+
+  - key: rss-rbmo
+    name: RBMO · 当期
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 720
+    in_scope_default: true
+    params: { url: "https://www.rbmojournal.com/current.rss" }
+
+  - key: rss-nature-reprobio
+    name: Nature 系 · Reproductive biology 主题
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params: { url: "https://www.nature.com/subjects/reproductive-biology.rss" }
+
+  - key: rss-nature-embryology
+    name: Nature 系 · Embryology 主题
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.nature.com/subjects/embryology.rss" }
+
+  - key: rss-biorxiv-devbio
+    name: bioRxiv · Developmental Biology RSS（领域过滤）
+    type: rss
+    tier: 1
+    kind: preprint
+    enabled: false   # 与 biorxiv-devbio API 重叠，按需启用
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "http://connect.biorxiv.org/biorxiv_xml/developmental_biology" }
+
+  - key: rss-sciencedaily-fertility
+    name: ScienceDaily · Fertility
+    type: rss
+    tier: 3
+    kind: news
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: true
+    params: { url: "https://www.sciencedaily.com/rss/health_medicine/fertility.xml" }
+
+  - key: rss-sciencedaily-pregnancy
+    name: ScienceDaily · Pregnancy（领域过滤）
+    type: rss
+    tier: 3
+    kind: news
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.sciencedaily.com/rss/health_medicine/pregnancy_and_childbirth.xml" }
+
+  - key: rss-sciencedaily-devbio
+    name: ScienceDaily · Developmental Biology（领域过滤）
+    type: rss
+    tier: 3
+    kind: news
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.sciencedaily.com/rss/plants_animals/developmental_biology.xml" }
+
+  - key: rss-eurekalert-medicine
+    name: EurekAlert · Medicine & Health（领域过滤）
+    type: rss
+    tier: 3
+    kind: news
+    enabled: false   # EurekAlert 已停止公开 RSS（2025 起 /rss/*.xml 返回 404）；如有可用地址再启用
+    interval_minutes: 240
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.eurekalert.org/rss/medicine_health.xml" }
+
+  # ------------------------------------------------- 学会/机构（HTML 列表，示例，默认关闭）
+  - key: html-eshre-press
+    name: ESHRE · Press releases
+    type: html_list
+    tier: 2
+    kind: news
+    enabled: false
+    interval_minutes: 1440
+    in_scope_default: true
+    params:
+      url: "https://www.eshre.eu/Press-Room/Press-releases"
+      include_url_regex: "/Press-Room/Press-releases/"
+      min_title_len: 20
+
+  - key: html-asrm-news
+    name: ASRM · News
+    type: html_list
+    tier: 2
+    kind: news
+    enabled: false
+    interval_minutes: 1440
+    in_scope_default: true
+    params:
+      url: "https://www.asrm.org/news-and-events/asrm-news/"
+      include_url_regex: "/news-and-events/asrm-news/"
+      min_title_len: 20
+
+  - key: html-hfea-news
+    name: HFEA · News and press releases
+    type: html_list
+    tier: 2
+    kind: news
+    enabled: false
+    interval_minutes: 1440
+    in_scope_default: true
+    params:
+      url: "https://www.hfea.gov.uk/about-us/news-and-press-releases/"
+      include_url_regex: "/about-us/news-and-press-releases/.+"
+      min_title_len: 15
+
+  # ------------------------------------------------- 中文 / 微信公众号（经 RSSHub，示例）
+  - key: rss-rsshub-example
+    name: RSSHub 示例（需设置 RSSHUB_BASE）
+    type: rss
+    tier: 3
+    kind: post
+    enabled: false
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "${RSSHUB_BASE}/sciencenet/news" }
+
+  # --------------------------------------------------------------- 推送入库
+  - key: ingest
+    name: API 推送入库（POST /api/v1/ingest）
+    type: push
+    tier: 2
+    kind: other
+    enabled: true
+    in_scope_default: false
+    scope_filter: false
+
+  - key: demo
+    name: 离线演示样例
+    type: push
+    tier: 1
+    kind: paper
+    enabled: true
+    in_scope_default: true

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>主题 <span class="muted small">覆盖生殖医学与辅助生殖全领域 · 括号内为入选总数 / 近 7 天</span></h2>
+<div class="grid2">
+{% for g in topic_groups %}
+  <div>
+    <h3>{{ g.name }}</h3>
+    <ul class="blog-posts">
+    {% for t in topics if t.group == g.key %}
+      <li><span><a href="/topics/{{ t.slug }}">{{ t.name }}</a> <span class="muted small">{{ counts.get(t.slug, 0) }} / {{ counts7.get(t.slug, 0) }}</span><br><span class="muted small">{{ t.name_en }}</span></span></li>
+    {% endfor %}
+    </ul>
+  </div>
+{% endfor %}
+</div>
+<p class="muted small">重点偏好（早期胚胎转录组 + 蛋白质组联合分析等）只做加权排序，不是收录条件；见 <a href="/about">关于</a>。</p>
+{% endblock %}

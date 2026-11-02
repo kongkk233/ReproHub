@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>后台</h2>
+{% if banner %}<div class="notice">{{ banner }}</div>{% endif %}
+{% if message %}<div class="box"><pre class="log">{{ message }}</pre></div>{% endif %}
+
+<div class="stats">
+  <span><b>{{ counts['items'] }}</b> 条目</span><span><b>{{ counts.new }}</b> 待评分</span><span><b>{{ counts.scored }}</b> 已评分</span><span><b>{{ counts.selected }}</b> 入选</span>
+  <span><b>{{ counts.rejected }}</b> 已过滤</span><span><b>{{ counts.interpretations }}</b> 解读</span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span>
+</div>
+
+<h3>LLM</h3>
+<p class="small">模式：{% if llm.mode == 'live' %}<b>真实</b> {{ llm.label }} / {{ llm.model }}{% elif llm.mode == 'mock' %}<span class="badge mock">模拟</span> {{ llm.reason }}{% else %}错误 {{ llm.reason }}{% endif %}
+  · 请求的提供商：<code>{{ llm.requested_provider }}</code> · 各步骤：{% for k, v in llm.steps.items() %}<code>{{ k }}={{ v.provider }}{% if v.is_mock %}(mock){% endif %}</code> {% endfor %}</p>
+{% if llm_stats.by_provider %}
+<table class="small"><thead><tr><th>提供商</th><th>模型</th><th>模拟</th><th>调用</th><th>成功</th><th>tokens(in/out)</th><th>均延迟</th></tr></thead><tbody>
+{% for r in llm_stats.by_provider %}<tr><td>{{ r.provider }}</td><td>{{ r.model }}</td><td>{{ '是' if r.is_mock else '否' }}</td><td>{{ r.n }}</td><td>{{ r.ok }}</td><td>{{ r.pt }}/{{ r.ct }}</td><td>{{ (r.lat or 0)|round|int }} ms</td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
+
+<h3>运行</h3>
+<form method="post" action="/admin/run" class="admin-form">
+  <select name="action">
+    <option value="pipeline">完整流水线（采集→评分→解读→聚类→日报→推送）</option>
+    <option value="collect">仅采集（可指定来源 key）</option>
+    <option value="process">仅预筛/评分（含重试失败项）</option>
+    <option value="interpret">仅自动解读</option>
+    <option value="cluster">仅聚类/热度</option>
+    <option value="daily">生成日报（key=日期，可空）</option>
+    <option value="weekly">生成周报（key=YYYY-Www，可空）</option>
+    <option value="monthly">生成月报（key=YYYY-MM，可空）</option>
+    <option value="push-test">测试推送渠道（key=渠道）</option>
+  </select>
+  <input name="key" placeholder="key（可选）">
+  <button class="btn primary" type="submit">执行</button>
+  <span class="muted small">同步执行，采集全部来源可能需要 1-3 分钟。</span>
+</form>
+
+<h3>推送渠道</h3>
+<p class="small">{% for c in channels %}<span class="badge" title="{{ c.type }}">{{ c.key }} {% if c.enabled and c.configured %}✓{% elif c.enabled %}未配置{% else %}关{% endif %}</span> {% endfor %}
+· 规则：{% for r in rules %}<code>{{ r.key }}→{{ r.channels|join(',') }}</code> {% endfor %}</p>
+
+<h3>来源状态</h3>
+<table class="small"><thead><tr><th>来源</th><th>上次</th><th>抓到/新增</th><th>状态</th><th>下次</th></tr></thead><tbody>
+{% for s in sources if s.enabled %}
+<tr><td><a href="/sources/{{ s.key }}">{{ s.name }}</a></td><td>{{ fmt_dt(s.last_fetch_at, "%m-%d %H:%M") or '—' }}</td><td>{{ s.last_seen }}/{{ s.last_new }}</td>
+<td>{% if s.last_status == 'error' %}<span class="status-error">{{ truncate(s.last_error or '错误', 70) }}</span>{% elif s.last_status %}<span class="status-ok">ok</span>{% else %}—{% endif %}</td><td>{{ fmt_dt(s.next_fetch_at, "%m-%d %H:%M") or '—' }}</td></tr>
+{% endfor %}
+</tbody></table>
+
+<h3>最近运行</h3>
+<table class="small"><thead><tr><th>#</th><th>开始</th><th>状态</th><th>摘要</th></tr></thead><tbody>
+{% for r in runs %}
+<tr><td>{{ r.id }}</td><td>{{ fmt_dt(r.started_at, "%m-%d %H:%M") }}</td><td class="{% if r.status == 'ok' %}status-ok{% else %}status-error{% endif %}">{{ r.status }}</td>
+<td>{% if r.summary.collect %}采集 +{{ r.summary.collect.new }}/{{ r.summary.collect.sources }}源{% if r.summary.collect.errors %} ✗{{ r.summary.collect.errors|length }}{% endif %} · {% endif %}{% if r.summary.process %}评分 {{ r.summary.process.scored }} 入选 {{ r.summary.process.selected }} · {% endif %}{% if r.summary.interpret %}解读 {{ r.summary.interpret.done }} · {% endif %}{% if r.summary.cluster %}事件 +{{ r.summary.cluster.created }} · {% endif %}{% if r.summary.error %}<span class="status-error">{{ r.summary.error }}</span>{% endif %}
+<details><summary>日志</summary><pre class="log">{{ r.log }}</pre></details></td></tr>
+{% endfor %}
+</tbody></table>
+
+<h3>最近推送</h3>
+<table class="small"><thead><tr><th>时间</th><th>规则</th><th>渠道</th><th>事件</th><th>状态</th></tr></thead><tbody>
+{% for p in pushes %}<tr><td>{{ fmt_dt(p.created_at, "%m-%d %H:%M") }}</td><td>{{ p.rule_key }}</td><td>{{ p.channel_key }}</td><td>{{ p.event }}</td><td class="{% if p.status == 'ok' %}status-ok{% else %}status-error{% endif %}">{{ p.status }} {{ p.error or '' }}</td></tr>{% else %}<tr><td colspan="5" class="muted">无</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

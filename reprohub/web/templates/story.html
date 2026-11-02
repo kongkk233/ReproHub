@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ story.title }}</h1>
+<div class="meta">事件 #{{ story.id }} · 热度 <b style="color:var(--accent)">{{ story.heat }}</b> · {{ story.item_count }} 条 · {{ story.source_count }} 个来源 · {{ fmt_dt(story.first_seen, "%Y-%m-%d") }} → {{ fmt_dt(story.last_seen, "%Y-%m-%d") }}
+  {% if story.primary_topic %}· <a href="/topics/{{ story.primary_topic }}">{{ topic_name(story.primary_topic) }}</a>{% endif %}</div>
+{% if story.summary %}<p>{{ story.summary }}</p>{% endif %}
+<p class="meta">来源：{% for s in sources %}<span class="badge">{{ s.name }}</span> {% endfor %}</p>
+<h2>相关条目</h2>
+{% for it in items %}{% include "_item.html" %}{% endfor %}
+{% endblock %}

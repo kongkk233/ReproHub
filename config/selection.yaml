@@ -1,0 +1,44 @@
+# 入选与评分规则。「研究范围」是门槛（必须属于生殖/辅助生殖领域），
+# 「重点偏好」只是加权（见 preferences.yaml），不是收录条件。
+
+scope:
+  # 规则匹配：标题命中 ×3 + 正文命中 ×1 ≥ min_topic_score 视为在领域内
+  min_topic_score: 2
+  # 规则判定在领域外、且来源 in_scope_default=false 时直接拒绝，不花模型调用
+  reject_out_of_scope_without_llm: true
+  # 规则分数处于 [ambiguous_low, min_topic_score) 的灰区条目交给模型预筛（有真实提供商时）
+  ambiguous_low: 1
+  prescreen_use_llm: true
+
+scoring:
+  # 模型评分 0-100。double=true 时评两次取均值（仅真实提供商生效）
+  double: false
+  disagreement_flag: 20
+  # 最终分 = 模型分 + 偏好加分×preference_weight + 等级修正
+  preference_weight: 1.0
+  preference_cap: 25
+  tier_adjust: { 1: 0, 2: 2, 3: -3 }
+  # 入选阈值（按来源等级）：一手期刊/预印本 ≥60，学会/机构 ≥62，媒体/个人 ≥68
+  select_threshold: { 1: 60, 2: 62, 3: 68 }
+  # 不同条目类型的阈值偏移
+  kind_adjust: { paper: 0, preprint: 2, guideline: -5, news: 5, post: 8, other: 10 }
+
+interpret:
+  # 自动为 final_score ≥ 该值 且 kind 属于 kinds 的条目生成文献解读；其余按需点击生成
+  auto_min_score: 72
+  kinds: [paper, preprint, guideline]
+  max_per_run: 20
+
+cluster:
+  window_days: 14
+  jaccard_same: 0.45
+  jaccard_ambiguous: 0.28
+  use_llm_for_ambiguous: true
+  # 热度：48 小时内每个独立来源只计一次，24 小时后减半；等级权重
+  heat_window_hours: 48
+  heat_half_life_hours: 24
+  tier_weight: { 1: 3, 2: 2, 3: 1 }
+
+housekeeping:
+  # 被规则直接拒绝的领域外条目保留天数（避免数据库膨胀）
+  purge_rejected_after_days: 7

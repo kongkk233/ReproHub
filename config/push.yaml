@@ -1,0 +1,78 @@
+# 推送渠道与规则。渠道参数可用 ${ENV_VAR} 引用环境变量；值为空的渠道自动视为未配置。
+channels:
+  - key: file
+    type: file
+    enabled: true
+    # 把推送内容写成 Markdown 文件。默认 <数据目录>/outbox；
+    # 可改为 Obsidian / Logseq 仓库里的目录，例如 dir: /Users/me/Obsidian/ReproHub
+    # dir: data/outbox
+
+  - key: serverchan
+    type: serverchan
+    enabled: false
+    sendkey: ${SERVERCHAN_SENDKEY}
+
+  - key: bark
+    type: bark
+    enabled: false
+    url: ${BARK_URL}            # 形如 https://api.day.app/<key>
+
+  - key: ntfy
+    type: ntfy
+    enabled: false
+    url: ${NTFY_URL}            # 形如 https://ntfy.sh/<topic>
+
+  - key: feishu
+    type: feishu
+    enabled: false
+    webhook: ${FEISHU_WEBHOOK}
+
+  - key: wecom
+    type: wecom
+    enabled: false
+    webhook: ${WECOM_WEBHOOK}
+
+  - key: dingtalk
+    type: dingtalk
+    enabled: false
+    webhook: ${DINGTALK_WEBHOOK}
+
+  - key: telegram
+    type: telegram
+    enabled: false
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    chat_id: ${TELEGRAM_CHAT_ID}
+
+  - key: webhook
+    type: webhook
+    enabled: false
+    url: ${GENERIC_WEBHOOK_URL}   # 收到 JSON: {event, title, markdown, items|edition}
+
+  - key: email
+    type: email
+    enabled: false
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    user: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+    from: ${SMTP_FROM}
+    to: ${SMTP_TO}
+
+# 规则：event=edition（日报/周报/月报生成后）或 event=item（新入选条目）
+rules:
+  - key: editions
+    event: edition
+    kinds: [daily, weekly, monthly]
+    channels: [file]
+
+  - key: high-score
+    event: item
+    min_final_score: 82
+    topics: []          # 留空=全部主题；或填 slug 列表
+    channels: [file]
+
+  - key: embryo-omics-alert
+    event: item
+    min_final_score: 60
+    min_preference: 20  # 命中「早期胚胎转录组+蛋白质组」等偏好规则
+    channels: [file]

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>来源 <span class="muted small">等级：1 期刊/预印本一手 · 2 学会机构 · 3 媒体个人</span></h2>
+<table>
+  <thead><tr><th>来源</th><th>类型</th><th>等级</th><th>条目/入选</th><th>上次采集</th><th>状态</th></tr></thead>
+  <tbody>
+  {% for s in sources %}
+    <tr class="{% if not s.enabled %}muted{% endif %}">
+      <td><a href="/sources/{{ s.key }}">{{ s.name }}</a>{% if not s.enabled %} <span class="badge">未启用</span>{% endif %}{% if cfg.get(s.key, {}).get('scope_filter') %} <span class="badge" title="入库前先做领域过滤">领域过滤</span>{% endif %}</td>
+      <td>{{ s.type }}</td>
+      <td>{{ s.tier }}</td>
+      <td>{{ s.n_items }} / {{ s.n_selected or 0 }}</td>
+      <td class="small">{{ fmt_dt(s.last_fetch_at, "%m-%d %H:%M") or '—' }}{% if s.last_fetch_at %}<br><span class="muted">抓到 {{ s.last_seen }}，新增 {{ s.last_new }}</span>{% endif %}</td>
+      <td class="small">{% if s.last_status == 'ok' %}<span class="status-ok">正常</span>{% elif s.last_status == 'error' %}<span class="status-error" title="{{ s.last_error }}">错误</span><br><span class="muted">{{ truncate(s.last_error or '', 60) }}</span>{% else %}—{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="muted small">来源配置在 <code>config/sources.yaml</code>；支持 pubmed / europepmc / biorxiv / crossref / rss / jsonapi / html_list / push（API 推送）。</p>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>登录</h2>
+{% if error %}<div class="notice">{{ error }}</div>{% endif %}
+<form method="post" action="/login{% if query.next %}?next={{ query.next|urlencode }}{% endif %}" class="admin-form">
+  <input type="password" name="password" placeholder="ADMIN_PASSWORD" autofocus>
+  <button class="btn primary" type="submit">进入</button>
+</form>
+<p class="muted small">未设置 ADMIN_PASSWORD 时，本机访问自动拥有写权限，无需登录。</p>
+{% endblock %}

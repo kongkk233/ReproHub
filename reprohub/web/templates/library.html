@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>阅读管理</h2>
+<div class="stats">
+  <span><b>{{ stats.read_later }}</b> 稍后读</span><span><b>{{ stats.starred }}</b> 星标</span><span><b>{{ stats.reading }}</b> 在读</span>
+  <span><b>{{ stats.read }}</b> 已读</span><span><b>{{ stats.read_7d }}</b> 近 7 天读完</span><span><b>{{ stats.notes }}</b> 有笔记</span>
+</div>
+<div class="tabs">
+  {% for key, label in [('later','稍后读'),('starred','星标'),('reading','在读'),('read','已读'),('notes','笔记'),('collections','集合')] %}
+  <a href="/library?tab={{ key }}" class="{% if tab == key %}on{% endif %}">{{ label }}</a>
+  {% endfor %}
+  {% if owner %}<span class="muted">· 导出</span>
+  <a href="/library/export.md">Markdown</a><a href="/library/export.json">JSON</a><a href="/library/export.csv">CSV</a><a href="/library/export.bib">BibTeX</a>{% endif %}
+</div>
+{% if stats.tags %}
+<p class="small">标签：{% for t, n in stats.tags.items() %}<a class="badge" href="/library?tab=tag&tag={{ t|urlencode }}">{{ t }} {{ n }}</a> {% endfor %}</p>
+{% endif %}
+
+{% if tab == 'collections' %}
+  {% if owner %}
+  <form method="post" action="/collections" class="admin-form">
+    <input name="name" placeholder="新集合名称（如：课题A-胚胎蛋白组）" required>
+    <input name="description" placeholder="描述（可选）">
+    <button class="btn" type="submit">创建</button>
+  </form>
+  {% endif %}
+  <ul class="blog-posts">
+  {% for c in collections %}
+    <li><span class="d">{{ c.n }} 条</span><span><a href="/collections/{{ c.id }}">{{ c.name }}</a> <span class="muted small">{{ c.description }}</span></span></li>
+  {% else %}<li class="muted">还没有集合。集合用于按课题/方向归档条目，可在条目页加入。</li>{% endfor %}
+  </ul>
+{% else %}
+  {% if tab == 'tag' %}<h3>标签：{{ tag }}</h3>{% endif %}
+  {% for it in items %}
+    {% include "_item.html" %}
+    {% if tab == 'notes' and it.notes %}<blockquote class="small" style="margin-top:-10px;margin-bottom:20px">{{ md(it.notes) }}</blockquote>{% endif %}
+  {% else %}
+    <p class="muted">这里还是空的。在列表或条目页点「稍后读」「★」「标为已读」即可归档到此。</p>
+  {% endfor %}
+  {% if total > items|length %}<p class="muted small">共 {{ total }} 条，仅显示前 {{ items|length }} 条。</p>{% endif %}
+{% endif %}
+
+{% if not owner %}<p class="notice small">阅读状态与笔记为本站主人私有数据。设置了 ADMIN_PASSWORD 时需 <a href="/login">登录</a> 后操作；未设置时仅本机访问可写。</p>{% endif %}
+{% endblock %}

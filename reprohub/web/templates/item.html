@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="item-head">
+  <h1 style="margin-bottom:4px">{{ it.title_zh or it.title }}</h1>
+  {% if it.title_zh %}<p class="en">{{ it.title }}</p>{% endif %}
+  <div class="meta">
+    <a href="/sources/{{ it.source_key }}">{{ it.source_name }}</a>
+    {% if it.journal %}· {{ it.journal }}{% endif %}
+    · <span class="badge kind">{{ KIND_LABEL.get(it.kind, it.kind) }}</span>
+    · {{ fmt_dt(it.published_at or it.fetched_at, "%Y-%m-%d") }}
+    {% if it.authors %}<br>{{ it.authors[:10]|join(", ") }}{% if it.authors|length > 10 %} 等 {{ it.authors|length }} 人{% endif %}{% endif %}
+    <br>
+    {% if it.doi %}DOI <a href="https://doi.org/{{ it.doi }}" rel="noopener">{{ it.doi }}</a> · {% endif %}
+    {% if it.pmid %}PMID <a href="https://pubmed.ncbi.nlm.nih.gov/{{ it.pmid }}/" rel="noopener">{{ it.pmid }}</a> · {% endif %}
+    <a href="{{ it.url }}" rel="noopener">原文链接 ↗</a>
+    {% if it.doi %}· <a href="https://scholar.google.com/scholar?q={{ it.doi|urlencode }}" rel="noopener">Scholar</a>{% endif %}
+  </div>
+  <div class="meta" style="margin-top:8px">
+    {% if it.final_score is not none %}
+      <span class="badge score {% if it.final_score < 60 %}low{% endif %}">综合 {{ it.final_score }}</span>
+      {% if it.llm_is_mock %}<span class="badge mock">模拟评分 · 未调用模型</span>{% else %}<span class="muted">模型 {{ it.llm_score }} · {{ it.llm_provider }}/{{ it.llm_model }}</span>{% endif %}
+      {% if it.selected %}<span class="badge">已入选</span>{% else %}<span class="badge">未入选（阈值 {{ it.extra.threshold }}）</span>{% endif %}
+    {% elif it.status == 'new' %}<span class="badge">待评分</span>
+    {% elif it.status == 'rejected' %}<span class="badge">已过滤：{{ it.reject_reason }}</span>
+    {% elif it.status == 'error' %}<span class="badge mock">评分失败：{{ it.reject_reason }}</span>{% endif %}
+    {% for t in it.topics[:4] %}<a class="badge" href="/topics/{{ t.slug }}">{{ topic_name(t.slug) }}</a> {% endfor %}
+  </div>
+  {% if it.preference_labels %}
+  <div class="meta">★ 命中偏好：{% for l in it.preference_labels %}<span class="badge pref">{{ l }}</span> {% endfor %}（加权 +{{ it.extra.pref_boost|default(it.preference_score)|round(1) }}，仅影响排序与入选，不是收录条件）</div>
+  {% endif %}
+  {% if it.score_dims %}
+  <div class="dims">
+    {% for k, label in [('novelty','新颖'),('rigor','严谨'),('impact','影响'),('relevance','领域相关'),('translation','转化')] %}{% if it.score_dims.get(k) is not none %}<span>{{ label }} <b>{{ it.score_dims[k] }}</b></span>{% endif %}{% endfor %}
+    {% if it.extra.score_disputed %}<span class="badge mock">两次评分分歧 {{ it.extra.score_disagreement }}</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if owner %}
+<div class="actions">
+  <button class="{% if reading.status == 'read' %}on{% endif %}" data-item="{{ it.id }}" data-field="status" data-value="read">✓ 已读</button>
+  <button class="{% if reading.status == 'reading' %}on{% endif %}" data-item="{{ it.id }}" data-field="status" data-value="reading">在读</button>
+  <button class="{% if reading.starred %}on{% endif %}" data-item="{{ it.id }}" data-field="starred">★ 星标</button>
+  <button class="{% if reading.read_later %}on{% endif %}" data-item="{{ it.id }}" data-field="read_later">稍后读</button>
+  <span class="muted small" style="align-self:center">评分：</span>
+  {% for r in [1,2,3,4,5] %}<button class="{% if reading.rating == r %}on{% endif %}" data-item="{{ it.id }}" data-field="rating" data-value="{{ r }}">{{ r }}</button>{% endfor %}
+  {% if collections %}
+  <form data-collection-add data-item="{{ it.id }}" class="inline-form">
+    <select name="cid" class="inline"><option value="">加入集合…</option>{% for c in collections %}<option value="{{ c.id }}" {% if c.id in in_collections %}disabled{% endif %}>{{ c.name }}{% if c.id in in_collections %}（已在）{% endif %}</option>{% endfor %}</select>
+    <button type="submit">加入</button> <span class="ok muted small"></span>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>摘要</h2>
+{% if it.summary_zh %}
+<p>{{ it.summary_zh }}</p>
+<details><summary>原文摘要</summary><p class="small">{{ it.summary or '（无）' }}</p></details>
+{% else %}
+<p>{{ it.summary or '（来源未提供摘要）' }}</p>
+{% endif %}
+{% if it.recommend_reason %}<p class="{% if it.llm_is_mock %}muted small{% endif %}"><b>推荐理由：</b>{{ it.recommend_reason }}</p>{% endif %}
+{% if it.keywords %}<p class="meta">关键词：{{ it.keywords|join(' · ') }}</p>{% endif %}
+
+<div class="interp" id="interpretation">
+  <h2>文献解读
+    {% if owner and it.status == 'scored' %}
+    <form method="post" action="/items/{{ it.id }}/interpret" class="inline-form">
+      <button class="btn small" type="submit">{% if interp %}重新生成{% else %}生成解读{% endif %}{% if llm.mode == 'mock' %}（模拟）{% endif %}</button>
+    </form>
+    {% endif %}
+  </h2>
+  {% if interp %}
+    <div class="meta">
+      {% if interp.is_mock %}<span class="badge mock">模拟解读 · 未调用模型</span>{% else %}由 {{ interp.provider }} / {{ interp.model }} 生成{% endif %}
+      · {{ fmt_dt(interp.created_at, "%Y-%m-%d %H:%M") }}
+      {% if interp.content.reading_time_min %}· 约 {{ interp.content.reading_time_min }} 分钟{% endif %}
+    </div>
+    {{ md(interp.markdown) }}
+  {% else %}
+    <p class="muted small">尚未生成。{% if it.final_score and it.final_score >= 72 %}该条目分数达到自动解读阈值，下次流水线运行时会自动生成；{% endif %}{% if owner %}也可点击上方按钮立即生成。{% endif %}</p>
+  {% endif %}
+</div>
+
+{% if owner %}
+<div class="notes">
+  <h2>笔记与标签</h2>
+  <form id="notes-form" data-item="{{ it.id }}">
+    <label>标签（逗号或空格分隔）</label>
+    <input name="tags" value="{{ reading.tags|join(', ') }}" placeholder="例如：ZGA, 蛋白质组, 待复现">
+    <label>笔记（Markdown）</label>
+    <textarea name="notes" placeholder="记录你的想法、可借鉴的方法、与自己课题的关联…">{{ reading.notes }}</textarea>
+    <div style="margin-top:6px"><button class="btn primary" type="submit">保存</button> <span id="notes-status" class="muted small"></span></div>
+  </form>
+</div>
+{% endif %}
+
+{% if story %}
+<div class="box">
+  <h2>所属事件：<a href="/story/{{ story.id }}">{{ story.title }}</a> <span class="muted small">热度 {{ story.heat }} · {{ story.source_count }} 个来源</span></h2>
+  {% if related %}<ul class="blog-posts">{% for r in related %}<li><span class="d">{{ fmt_dt(r.published_at or r.fetched_at, "%m-%d") }}</span><a href="/items/{{ r.id }}">{{ r.title_zh or r.title }}</a> <span class="muted small">{{ r.source_name }}</span></li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+
+{% if mentions|length > 1 %}
+<div class="box">
+  <h2>收录来源（{{ mentions|length }}）</h2>
+  <ul class="blog-posts">{% for m in mentions %}<li><span class="d">{{ fmt_dt(m.seen_at, "%m-%d %H:%M") }}</span><a href="{{ m.url }}" rel="noopener">{{ m.name }}</a></li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<p class="meta">条目 #{{ it.id }} · 入库 {{ fmt_dt(it.fetched_at, "%Y-%m-%d %H:%M") }} · <a href="/api/v1/items/{{ it.id }}">JSON</a>{% if it.extra.pub_types %} · {{ it.extra.pub_types|join(', ') }}{% endif %}</p>
+{% endblock %}

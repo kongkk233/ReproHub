@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stats">
+  <span><b>{{ counts.selected }}</b> 精选</span>
+  <span><b>{{ counts.scored }}</b> 已评分</span>
+  <span><b>{{ counts.unread_selected }}</b> 未读精选</span>
+  <span><b>{{ counts.stories }}</b> 事件</span>
+  {% if latest_daily %}<span>最新日报 <a href="/editions/daily/{{ latest_daily.date_key }}">{{ latest_daily.date_key }}</a>（{{ latest_daily.item_count }} 条）</span>{% endif %}
+</div>
+
+{% if stories %}
+<div class="hot">
+  <h2>当前热点 <a class="small right" href="/stories">完整榜单 →</a></h2>
+  <ol>
+    {% for s in stories %}
+    <li><a href="/story/{{ s.id }}">{{ truncate(s.title, 80) }}</a><span class="heat">热度 {{ s.heat }}</span>
+      <span class="src">· {{ s.source_count }} 个来源 · {{ s.item_count }} 条{% if s.primary_topic %} · {{ topic_name(s.primary_topic) }}{% endif %}</span></li>
+    {% endfor %}
+  </ol>
+</div>
+{% endif %}
+
+<h2 style="margin-bottom:0">精选</h2>
+{% include "_filters.html" %}
+{% include "_groups.html" %}
+{% include "_pager.html" %}
+{% endblock %}

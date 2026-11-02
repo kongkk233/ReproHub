@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ ed.title }}</h1>
+<div class="meta">{{ EDITION_LABEL.get(ed.kind) }} · {{ ed.item_count }} 条 · 生成于 {{ fmt_dt(ed.created_at, "%Y-%m-%d %H:%M") }}
+  · {% if ed.kind == 'daily' %}规则编纂{% elif ed.is_mock %}<span class="badge mock">总述为模拟模式占位，未调用模型</span>{% else %}总述由 {{ ed.provider }} / {{ ed.model }} 撰写{% endif %}
+  · <a href="/editions/{{ ed.kind }}/{{ ed.date_key }}.md">Markdown</a> · <a href="/api/v1/editions/{{ ed.kind }}/{{ ed.date_key }}">JSON</a>
+  {% if ed.content.label %}· 窗口 {{ ed.content.label }}{% endif %}</div>
+{% if ed.overview %}<div class="box">{{ md(ed.overview) }}</div>{% endif %}
+{% set secs = ed.content.sections %}
+{% if secs|length > 1 %}<p class="toc">{% for s in secs %}<a href="#sec-{{ s.topic }}">{{ s.topic_name }}（{{ s['items']|length }}）</a>{% endfor %}</p>{% endif %}
+{% for s in secs %}
+<h2 id="sec-{{ s.topic }}">{{ s.topic_name }} <span class="muted small">{{ s['items']|length }} 条</span></h2>
+{% if ed.content.leads and ed.content.leads.get(s.topic) %}<p class="muted"><i>{{ ed.content.leads[s.topic] }}</i></p>{% endif %}
+{% for c in s['items'] %}
+  {% set it = full.get(c.id) %}
+  {% if it %}{% include "_item.html" %}{% else %}
+  <article class="post"><div class="meta"><span class="badge score">{{ c.final_score }}</span> {{ c.source_name }}</div><h3><a href="/items/{{ c.id }}">{{ c.title_zh or c.title }}</a></h3></article>
+  {% endif %}
+{% endfor %}
+{% else %}
+<p class="muted">本期没有入选条目。</p>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>关于 {{ site.name_zh }}</h2>
+<p>{{ site.description }}</p>
+
+<h3>它做什么</h3>
+<ul>
+  <li><b>聚合</b>：每小时从 PubMed、Europe PMC、bioRxiv/medRxiv、Crossref（核心期刊）、期刊与媒体 RSS 等来源采集，按 DOI / PMID / URL / 标题指纹去重；多个来源收录同一篇时合并为一条并记录「另外 N 个来源也收录」。</li>
+  <li><b>分类与门槛</b>：{{ topics|length }} 个主题覆盖生殖与辅助生殖全领域（见 <a href="/topics">主题</a>）。<b>属于该领域是收录门槛</b>；横切主题（组学方法、AI、动物模型）单独命中不算在领域内。</li>
+  <li><b>重点偏好（只加权，不是门槛）</b>：
+    <ul>{% for r in preferences %}<li>{{ r.label }} <span class="muted small">+{{ r.weight }}</span></li>{% endfor %}</ul>
+    偏好分乘以 {{ selection.scoring.preference_weight }} 后加到最终分（上限 +{{ selection.scoring.preference_cap }}）。未命中任何偏好的领域内内容照常收录。</li>
+  <li><b>评分与入选</b>：模型按新颖性、严谨性、领域影响、领域相关、转化价值五个维度评 0-100，加偏好与来源等级修正得最终分；入选阈值按来源等级为 {{ selection.scoring.select_threshold }}。</li>
+  <li><b>文献解读</b>：最终分 ≥ {{ selection.interpret.auto_min_score }} 的文献自动生成结构化中文解读（背景 / 设计 / 发现 / 多组学视角 / 意义 / 局限 / 术语），其余可在条目页按需生成。</li>
+  <li><b>事件与热度</b>：近 {{ selection.cluster.window_days }} 天内相关条目聚为事件；热度按独立来源计（48 小时内每来源一次，24 小时减半），同一媒体多次报道不重复计热。</li>
+  <li><b>日报 / 周报 / 月报</b>：日报由规则编纂，周报月报从日报汇编，模型只写总述与栏目导读。</li>
+  <li><b>阅读管理</b>：未读 / 在读 / 已读、星标、稍后读、五星评分、标签、Markdown 笔记、按课题分集合；可导出 Markdown / JSON / CSV / BibTeX。</li>
+  <li><b>推送</b>：日报与高分条目可推到文件（Obsidian 目录）、Server 酱、Bark、ntfy、飞书、企业微信、钉钉、Telegram、邮件或任意 Webhook。</li>
+  <li><b>对外出口</b>：<a href="/agent">RSS / JSON API / llms.txt</a>。</li>
+</ul>
+
+<h3>模型与模拟模式</h3>
+<p>默认使用 DeepSeek；通义千问、智谱、Moonshot、OpenAI、Ollama 或任意 OpenAI 兼容端点可在 <code>config/site.yaml</code> 与 <code>.env</code> 中切换，每个流水线步骤还能单独指定模型（<code>config/models.yaml</code>）。</p>
+<p>当前模式：{% if llm.mode == 'live' %}<b>真实调用</b> {{ llm.label }} / {{ llm.model }}{% elif llm.mode == 'mock' %}<span class="badge mock">模拟模式</span>（{{ llm.reason }}）{% else %}错误：{{ llm.reason }}{% endif %}。
+没有 API key 时系统进入<b>明确标识的模拟模式</b>：评分由规则生成、解读只抽取原文句子、周报总述只做统计描述；所有这类结果在数据库、页面、RSS 与 API 中都带 <code>is_mock=true</code>，绝不伪报为真实模型调用。设置 <code>LLM_ALLOW_MOCK_FALLBACK=false</code> 可改为缺 key 直接报错。</p>
+
+<h3>数据概况</h3>
+<div class="stats"><span><b>{{ counts['items'] }}</b> 条目</span><span><b>{{ counts.selected }}</b> 入选</span><span><b>{{ counts.interpretations }}</b> 解读</span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span><span><b>{{ sources|length }}</b> 来源</span>{% if counts.mock_scored %}<span><b>{{ counts.mock_scored }}</b> 模拟评分</span>{% endif %}</div>
+
+<h3>致谢</h3>
+<p class="small">项目框架参考 <a href="https://github.com/KKKKhazix/AIHOT" rel="noopener">AIHOT</a>（自己找热点、自己写日报的网站框架）；界面风格参考 <a href="https://bearblog.dev/" rel="noopener">Bear Blog</a>。</p>
+{% endblock %}

@@ -1,0 +1,85 @@
+# 站点与运行配置。所有文案可改；路径/阈值类配置见 selection.yaml
+site:
+  name: ReproHub
+  name_zh: 生殖医学前沿
+  tagline: 生殖医学 · 辅助生殖 · 胚胎多组学 — 文献聚合、解读、阅读管理与推送
+  description: >
+    面向生殖医学、辅助生殖及相关基础研究的信息聚合与阅读平台。
+    自动采集期刊、预印本、学会与媒体来源，按领域分类、评分、聚类成事件，
+    为重要文献生成结构化解读，编纂日报/周报/月报并推送到你选择的渠道。
+  language: zh-CN
+  timezone: Asia/Shanghai
+  base_url: http://127.0.0.1:8008
+  # 首页每页条数 / 列表页每页条数
+  page_size: 30
+  # 首页「精选」只显示 selected=1 的条目；设为 false 则显示全部已评分条目
+  home_selected_only: true
+  footer_links:
+    - { text: 关于, href: /about }
+    - { text: 接入, href: /agent }
+    - { text: RSS, href: /feed.xml }
+    - { text: 后台, href: /admin }
+
+# 版次。日报 = 某个本地日历日内入选的条目，由规则编纂：当天的日报随每次流水线持续更新，
+# 调度在次日 time 定稿前一天；周报（周一）定稿上一 ISO 周、月报（1 日）定稿上个月，
+# 都从日报汇编，模型只写总述与栏目导读。
+editions:
+  daily:   { time: "08:00", max_items: 40, per_topic: 6 }
+  weekly:  { weekday: 1, time: "10:00", max_items: 30, per_topic: 5 }   # 1=周一
+  monthly: { day: 1, time: "10:30", max_items: 50, per_topic: 6 }
+
+# 采集调度（serve --scheduler 或 run-forever 时生效）
+scheduler:
+  collect_every_minutes: 60
+  process_after_collect: true
+  cluster_every_minutes: 120
+
+llm:
+  # 环境变量 LLM_PROVIDER 选择下列 key；缺省 deepseek
+  default_provider: deepseek
+  request_timeout_seconds: 90
+  max_retries: 3
+  providers:
+    deepseek:
+      label: DeepSeek
+      base_url: https://api.deepseek.com
+      api_key_env: DEEPSEEK_API_KEY
+      model: deepseek-chat
+      supports_json_mode: true
+    qwen:
+      label: 通义千问（DashScope 兼容模式）
+      base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      api_key_env: QWEN_API_KEY
+      model: qwen-plus
+      supports_json_mode: true
+    zhipu:
+      label: 智谱 GLM
+      base_url: https://open.bigmodel.cn/api/paas/v4
+      api_key_env: ZHIPU_API_KEY
+      model: glm-4-flash
+      supports_json_mode: false
+    moonshot:
+      label: Moonshot Kimi
+      base_url: https://api.moonshot.cn/v1
+      api_key_env: MOONSHOT_API_KEY
+      model: moonshot-v1-8k
+      supports_json_mode: true
+    openai:
+      label: OpenAI
+      base_url: https://api.openai.com/v1
+      api_key_env: OPENAI_API_KEY
+      model: gpt-4o-mini
+      supports_json_mode: true
+    ollama:
+      label: Ollama（本地）
+      base_url: http://127.0.0.1:11434/v1
+      api_key_env: ""          # 本地无需 key
+      model: qwen2.5:7b
+      supports_json_mode: true
+      no_key_required: true
+    custom:
+      label: 自定义 OpenAI 兼容端点
+      base_url_env: CUSTOM_LLM_BASE_URL
+      api_key_env: CUSTOM_LLM_API_KEY
+      model_env: CUSTOM_LLM_MODEL
+      supports_json_mode: true

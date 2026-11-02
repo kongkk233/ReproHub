@@ -1,0 +1,29 @@
+{# 单条列表卡片：期望变量 it #}
+<article class="post {% if it.read_status == 'read' %}read{% endif %}" data-item-id="{{ it.id }}">
+  <div class="meta">
+    <span>{{ fmt_dt(it.published_at or it.fetched_at, "%H:%M") }}</span>
+    · <a href="/sources/{{ it.source_key }}">{{ it.source_name }}</a>
+    {% if it.journal and it.journal != it.source_name %}· <span>{{ truncate(it.journal, 40) }}</span>{% endif %}
+    · <span class="badge kind">{{ KIND_LABEL.get(it.kind, it.kind) }}</span>
+    {% if it.final_score is not none %}
+      <span class="badge score {% if it.final_score < 60 %}low{% endif %}" title="模型分 {{ it.llm_score }} + 偏好/等级修正">{{ it.final_score|round|int }}</span>
+      {% if it.llm_is_mock %}<span class="badge mock" title="规则占位评分，未调用模型">模拟</span>{% endif %}
+    {% endif %}
+    {% if it.primary_topic %}· <a href="/topics/{{ it.primary_topic }}">{{ topic_name(it.primary_topic) }}</a>{% endif %}
+    {% if it.preference_score and it.preference_score > 0 %}<span class="badge pref" title="{{ it.preference_labels|join('；') }}">★ 偏好 +{{ it.preference_score|round|int }}</span>{% endif %}
+  </div>
+  <h3><a href="/items/{{ it.id }}">{{ it.title_zh or it.title }}</a></h3>
+  {% if it.title_zh %}<div class="en">{{ it.title }}</div>{% endif %}
+  {% set s = it.summary_zh or it.summary %}
+  {% if s %}<p class="summary">{{ truncate(s, 260) }}</p>{% endif %}
+  {% if it.recommend_reason and not it.llm_is_mock %}<p class="reason">推荐理由：{{ truncate(it.recommend_reason, 160) }}</p>{% endif %}
+  <div class="meta">
+    {% if it.mention_count and it.mention_count > 1 %}另外 {{ it.mention_count - 1 }} 个来源也收录 · {% endif %}
+    {% if it.has_interpretation %}<a href="/items/{{ it.id }}#interpretation">有解读</a> · {% endif %}
+    {% if owner %}
+      <button class="theme-toggle {% if it.read_status == 'read' %}on{% endif %}" data-item="{{ it.id }}" data-field="status" data-value="read" title="标记已读/未读">{% if it.read_status == 'read' %}✓ 已读{% else %}标为已读{% endif %}</button>
+      <button class="theme-toggle {% if it.starred %}on{% endif %}" data-item="{{ it.id }}" data-field="starred" title="星标">★</button>
+      <button class="theme-toggle {% if it.read_later %}on{% endif %}" data-item="{{ it.id }}" data-field="read_later" title="稍后读">稍后读</button>
+    {% endif %}
+  </div>
+</article>

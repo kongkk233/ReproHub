@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>热点事件 <span class="muted small">近 {{ days }} 天 · 按热度（48 小时内每个独立来源计一次，24 小时减半）</span></h2>
+<div class="tabs"><a href="/stories?days=3" class="{% if days == 3 %}on{% endif %}">3 天</a><a href="/stories?days=7" class="{% if days == 7 %}on{% endif %}">7 天</a><a href="/stories?days=14" class="{% if days == 14 %}on{% endif %}">14 天</a><a href="/stories?days=30" class="{% if days == 30 %}on{% endif %}">30 天</a></div>
+<ol>
+{% for s in stories %}
+  <li style="margin-bottom:10px">
+    <a href="/story/{{ s.id }}"><b>{{ s.title }}</b></a> <span class="heat" style="color:var(--accent)">热度 {{ s.heat }}</span>
+    <div class="meta">{{ s.item_count }} 条 · {{ s.source_count }} 个来源：{% for src in s.sources[:6] %}{{ src.name }}{% if not loop.last %}、{% endif %}{% endfor %}
+      {% if s.primary_topic %}· <a href="/topics/{{ s.primary_topic }}">{{ topic_name(s.primary_topic) }}</a>{% endif %} · 最近 {{ fmt_dt(s.last_seen, "%m-%d") }}</div>
+    {% if s.summary %}<div class="small">{{ truncate(s.summary, 200) }}</div>{% endif %}
+  </li>
+{% else %}
+  <p class="muted">暂无事件。运行 <code>reprohub cluster</code> 或完整流水线后生成。</p>
+{% endfor %}
+</ol>
+{% endblock %}

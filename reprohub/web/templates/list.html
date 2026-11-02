@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 style="margin-bottom:0">{{ title }}</h2>
+{% if filters.get('topic') and topic_map.get(filters.topic) %}
+<p class="muted small">{{ topic_map[filters.topic].name_en }} · <a href="/feed/topic/{{ filters.topic }}.xml">RSS</a> · <a href="/topics">所有主题</a></p>
+{% endif %}
+{% include "_filters.html" %}
+{% include "_groups.html" %}
+{% include "_pager.html" %}
+{% endblock %}

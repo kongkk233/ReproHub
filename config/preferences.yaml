@@ -1,0 +1,67 @@
+# 重点偏好（加权，不是门槛）。
+# 命中的规则给 preference_score 加分，排序与入选阈值会参考它；
+# 未命中任何偏好的领域内条目照常收录。
+#
+# 规则语义：all_of 中每一组（any_of）至少命中一个关键词，则该规则命中。
+# 英文按词边界匹配（不区分大小写），中文按子串匹配；可用 title_only: true 限定只看标题。
+
+rules:
+  - key: embryo-transcriptome-proteome
+    label: 早期胚胎转录组+蛋白质组联合分析
+    weight: 30
+    all_of:
+      - any_of: [preimplantation, early embryo, early embryos, zygote, zygotes, 2-cell, two-cell, 4-cell, 8-cell, morula, blastocyst, blastocysts, oocyte-to-embryo, maternal-to-zygotic, zygotic genome activation, ZGA, 早期胚胎, 植入前胚胎, 囊胚, 合子]
+      - any_of: [transcriptome, transcriptomic, transcriptomics, RNA-seq, RNA sequencing, scRNA-seq, translatome, 转录组]
+      - any_of: [proteome, proteomic, proteomics, mass spectrometry, LC-MS, phosphoproteom, 蛋白质组, 蛋白组, 质谱]
+
+  - key: embryo-proteomics
+    label: 早期胚胎/卵母细胞蛋白质组
+    weight: 20
+    all_of:
+      - any_of: [preimplantation, early embryo, early embryos, zygote, zygotes, blastocyst, blastocysts, morula, 8-cell, 2-cell, oocyte, oocytes, 早期胚胎, 卵母细胞, 囊胚]
+      - any_of: [proteome, proteomic, proteomics, mass spectrometry, low-input proteomics, single-cell proteomics, phosphoproteom, ubiquitinom, 蛋白质组, 蛋白组, 质谱]
+
+  - key: embryo-transcriptomics
+    label: 早期胚胎转录组/单细胞转录组
+    weight: 12
+    all_of:
+      - any_of: [preimplantation, early embryo, early embryos, zygote, zygotes, blastocyst, blastocysts, morula, 8-cell, 2-cell, zygotic genome activation, ZGA, 早期胚胎, 植入前胚胎, 囊胚]
+      - any_of: [transcriptome, transcriptomic, transcriptomics, RNA-seq, scRNA-seq, single-cell RNA, single cell RNA, Smart-seq, 转录组, 单细胞]
+
+  - key: multiomics-integration
+    label: 多组学整合分析（任意生殖对象）
+    weight: 10
+    all_of:
+      - any_of: [multi-omics, multiomics, multi-omic, integrative analysis, integrated analysis, integrated multi, joint analysis, 多组学, 联合分析, 整合分析]
+
+  - key: oocyte-to-embryo-transition
+    label: 卵母细胞-胚胎转换 / 母源-合子转换
+    weight: 10
+    all_of:
+      - any_of: [oocyte-to-embryo transition, maternal-to-zygotic, maternal to zygotic, zygotic genome activation, ZGA, maternal mRNA, maternal protein, maternal factors, 母源, 合子基因组激活]
+
+  - key: human-embryo
+    label: 人类胚胎材料
+    weight: 6
+    all_of:
+      - any_of: [human embryo, human embryos, human blastocyst, human blastocysts, human oocyte, human oocytes, human preimplantation, 人类胚胎, 人胚胎, 人卵母细胞]
+
+  - key: embryo-epigenome
+    label: 早期胚胎表观基因组 / 染色质
+    weight: 8
+    all_of:
+      - any_of: [preimplantation, early embryo, early embryos, zygote, blastocyst, morula, 早期胚胎, 植入前胚胎]
+      - any_of: [DNA methylation, methylome, chromatin, ATAC-seq, CUT&Tag, Hi-C, 3D genome, histone, epigenome, epigenomic, 甲基化, 染色质, 表观]
+
+  - key: embryo-models
+    label: 干细胞胚胎模型（blastoid / gastruloid 等）
+    weight: 6
+    all_of:
+      - any_of: [blastoid, blastoids, gastruloid, gastruloids, embryo model, embryo models, embryo-like, stem cell-derived embryo, synthetic embryo, 胚胎模型, 类囊胚]
+
+  - key: translational-art
+    label: 可转化到 ART 实验室的发现
+    weight: 5
+    all_of:
+      - any_of: [embryo, embryos, oocyte, oocytes, blastocyst, 胚胎, 卵母细胞]
+      - any_of: [IVF, ICSI, embryo selection, embryo transfer, live birth, implantation, non-invasive, noninvasive, spent medium, biomarker, biomarkers, 试管, 胚胎移植, 活产, 生物标志]

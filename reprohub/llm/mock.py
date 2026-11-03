@@ -107,6 +107,9 @@ class MockProvider(LLMProvider):
         }
 
     def _interpret(self, ctx: dict) -> dict:
+        # basis 由解读步骤给出：有 OA 全文时按全文抽取，否则只依据摘要
+        full = (ctx.get("basis") or "abstract") == "fulltext"
+        src = "全文" if full else "摘要"
         summary = ctx.get("summary") or ""
         sents = self._sentences(summary)
         design = [s for s in sents if _METHOD_WORDS.search(s)][:3]
@@ -114,16 +117,16 @@ class MockProvider(LLMProvider):
         omics = sorted({m.group(0).lower() for m in _OMICS_WORDS.finditer(summary)})
         terms = [{"en": kw, "zh": "", "note": "（模拟模式不提供释义）"} for kw in (ctx.get("matched_keywords") or [])[:6]]
         return {
-            "one_liner": "【模拟解读】未调用模型；以下内容均为从原文摘要中抽取的句子，不含评价。",
-            "background": first_sentences(summary, 2, 500) or "原文未提供摘要。",
-            "design": " ".join(design) if design else "原文未提供（或模拟模式未能从摘要中识别方法句）。",
-            "findings": findings or ["原文未提供（或模拟模式未能从摘要中识别结果句）。"],
-            "omics_angle": ("摘要中提及的组学/技术词：" + "、".join(omics)) if omics else "不适用（摘要未提及组学相关词）",
+            "one_liner": f"【模拟解读】未调用模型；以下内容均为从原文{src}中抽取的句子，不含评价。",
+            "background": first_sentences(summary, 2, 500) or f"原文未提供{src}。",
+            "design": " ".join(design) if design else f"原文未提供（或模拟模式未能从{src}中识别方法句）。",
+            "findings": findings or [f"原文未提供（或模拟模式未能从{src}中识别结果句）。"],
+            "omics_angle": (f"{src}中提及的组学/技术词：" + "、".join(omics)) if omics else f"不适用（{src}未提及组学相关词）",
             "significance": "模拟模式不生成评价。" + MOCK_NOTICE,
-            "limitations": ["模拟模式未评估局限性。"],
+            "limitations": ([] if full else ["本次未取得 OA 全文，仅依据摘要；方法与结果细节可能缺失。"]) + ["模拟模式未评估局限性。"],
             "next_questions": [],
             "terms": terms,
-            "reading_time_min": max(2, len(summary) // 900 + 2),
+            "reading_time_min": max(2, min(20, len(summary) // 900 + 2)),
             "mock": True,
         }
 

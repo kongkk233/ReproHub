@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from .. import __version__, repo
 from ..db import get_conn
+from ..fulltext import describe as describe_fulltext
 from ..llm import EFFORT_LEVELS, LLM, LLMError, clear_overrides, llm_status, set_overrides, test_llm
 from ..pipeline.classify import Classifier
 from ..pipeline.collect import ingest_item
@@ -38,6 +39,8 @@ def _public_item(it: dict, *, full: bool = False) -> dict:
     d["summary_zh"] = it.get("summary_zh")
     d["summary"] = it.get("summary") if full else (it.get("summary") or "")[:500]
     d["has_interpretation"] = bool(it.get("has_interpretation"))
+    d["interpretation_basis"] = it.get("interp_basis")
+    d["fulltext_status"] = it.get("fulltext_status")
     return d
 
 
@@ -89,10 +92,38 @@ def item(request: Request, item_id: int):
         raise HTTPException(404)
     d = _public_item(it, full=True)
     interp = repo.get_interpretation(conn, item_id)
-    d["interpretation"] = {"content": interp["content"], "markdown": interp["markdown"], "provider": interp["provider"], "model": interp["model"], "is_mock": bool(interp["is_mock"]), "created_at": interp["created_at"]} if interp else None
+    d["interpretation"] = {"content": interp["content"], "markdown": interp["markdown"], "provider": interp["provider"], "model": interp["model"],
+                           "is_mock": bool(interp["is_mock"]), "basis": interp.get("basis") or "abstract", "created_at": interp["created_at"]} if interp else None
+    ft = repo.get_fulltext(conn, item_id)
+    d["fulltext"] = {
+        "available": bool(ft and ft.get("status") == "ok"),
+        "status": (ft or {}).get("status"),
+        "reason": describe_fulltext(ft),
+        "pmcid": (ft or {}).get("pmcid"),
+        "license": (ft or {}).get("license"),
+        "chars": (ft or {}).get("chars") or 0,
+        "source": (ft or {}).get("source"),
+        "fetched_at": (ft or {}).get("fetched_at"),
+    }
     if is_owner(request):
         d["reading"] = repo.get_reading(conn, item_id)
     return d
+
+
+@router.post("/items/{item_id}/fulltext")
+def item_fulltext(request: Request, item_id: int, force: bool = True, _=Depends(require_owner)):
+    """抓取该条的 Europe PMC OA 全文（不需要 API key）；非 OA / 无 PMCID 也返回明确原因。"""
+    from ..fulltext import fetch_for_item
+
+    settings = _s(request)
+    conn = get_conn(settings)
+    it = repo.get_item(conn, item_id)
+    if not it:
+        raise HTTPException(404)
+    r = fetch_for_item(settings, conn, it, force=force)
+    rec = r.get("record") or {}
+    return {"ok": bool(r["ok"]), "status": r["status"], "reason": r["reason"], "pmcid": rec.get("pmcid"), "license": rec.get("license"),
+            "chars": rec.get("chars") or 0, "truncated": r.get("truncated") or []}
 
 
 @router.post("/items/{item_id}/interpret")

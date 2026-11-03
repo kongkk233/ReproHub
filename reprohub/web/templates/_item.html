@@ -21,7 +21,7 @@
   {% if it.recommend_reason and not it.llm_is_mock %}<p class="reason">推荐理由：{{ truncate(it.recommend_reason, 160) }}</p>{% endif %}
   <div class="meta">
     {% if it.mention_count and it.mention_count > 1 %}另外 {{ it.mention_count - 1 }} 个来源也收录 · {% endif %}
-    {% if it.has_interpretation %}<a href="/items/{{ it.id }}#interpretation">有解读</a> · {% endif %}
+    {% if it.has_interpretation %}<a href="/items/{{ it.id }}#interpretation"{% if it.interp_basis == 'fulltext' %} title="依据 Europe PMC OA 全文"{% elif it.interp_basis %} title="未取得全文，仅依据摘要"{% endif %}>{% if it.interp_basis == 'fulltext' %}全文解读{% elif it.interp_basis %}仅摘要解读{% else %}有解读{% endif %}</a> · {% endif %}
     {% if owner %}
       <button class="theme-toggle {% if it.read_status == 'read' %}on{% endif %}" data-item="{{ it.id }}" data-field="status" data-value="read" title="标记已读/未读">{% if it.read_status == 'read' %}✓ 已读{% else %}标为已读{% endif %}</button>
       <button class="theme-toggle {% if it.starred %}on{% endif %}" data-item="{{ it.id }}" data-field="starred" title="星标">★</button>

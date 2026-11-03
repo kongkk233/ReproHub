@@ -66,6 +66,22 @@
 {% if it.recommend_reason %}<p class="{% if it.llm_is_mock %}muted small{% endif %}"><b>推荐理由：</b>{{ it.recommend_reason }}</p>{% endif %}
 {% if it.keywords %}<p class="meta">关键词：{{ it.keywords|join(' · ') }}</p>{% endif %}
 
+<p class="meta" id="fulltext">
+  解读依据：
+  {% if ft and ft.status == 'ok' %}
+    <span class="badge">Europe PMC OA 全文</span> {{ ft.pmcid }}{% if ft.license %} · 许可 {{ ft.license }}{% endif %} · {{ ft.chars }} 字符 · 抓取 {{ fmt_dt(ft.fetched_at, "%Y-%m-%d") }}
+    <a href="https://europepmc.org/article/PMC/{{ (ft.pmcid or '').replace('PMC', '') }}" rel="noopener">Europe PMC ↗</a>
+  {% else %}
+    <span class="badge mock">仅摘要</span> <span class="muted small">{{ fulltext_note }}</span>
+  {% endif %}
+  {% if owner and it.status == 'scored' %}
+  <form method="post" action="/items/{{ it.id }}/fulltext" class="inline-form">
+    <button class="btn small" type="submit">{% if ft and ft.status == 'ok' %}重新抓取全文{% else %}抓取 OA 全文{% endif %}</button>
+  </form>
+  {% endif %}
+</p>
+{% if request.query_params.get('fulltext') %}<div class="notice">全文抓取：{{ request.query_params.get('fulltext') }}</div>{% endif %}
+
 <div class="interp" id="interpretation">
   <h2>文献解读
     {% if owner and it.status == 'scored' %}
@@ -77,6 +93,8 @@
   {% if interp %}
     <div class="meta">
       {% if interp.is_mock %}<span class="badge mock">模拟解读 · 未调用模型</span>{% else %}由 {{ interp.provider }} / {{ interp.model }}{% if interp.effort %}（强度 {{ interp.effort }}）{% endif %} 生成{% endif %}
+      {% if interp.basis == 'fulltext' %}<span class="badge" title="依据 Europe PMC OA 全文">全文解读</span>
+      {% elif interp.basis %}<span class="badge mock" title="{{ fulltext_note }}">仅摘要解读</span>{% endif %}
       · {{ fmt_dt(interp.created_at, "%Y-%m-%d %H:%M") }}
       {% if interp.content.reading_time_min %}· 约 {{ interp.content.reading_time_min }} 分钟{% endif %}
     </div>

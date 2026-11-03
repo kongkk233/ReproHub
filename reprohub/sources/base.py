@@ -31,7 +31,11 @@ class RawItem:
 
 
 class FetchError(Exception):
-    pass
+    """抓取失败。status 为 HTTP 状态码；连接/超时等网络层错误为 None。"""
+
+    def __init__(self, msg: str, *, status: int | None = None):
+        super().__init__(msg)
+        self.status = status
 
 
 def user_agent(settings: Settings) -> str:
@@ -53,11 +57,12 @@ def http_get(url: str, settings: Settings, *, params: dict | None = None, header
                 time.sleep(2 * (attempt + 1))
                 continue
             if r.status_code >= 400:
-                raise FetchError(f"HTTP {r.status_code} {url}")
+                raise FetchError(f"HTTP {r.status_code} {url}", status=r.status_code)
             return r
         except httpx.HTTPError as e:
             last = e
-            time.sleep(1.5 * (attempt + 1))
+            if attempt < retries:
+                time.sleep(1.5 * (attempt + 1))
     raise FetchError(f"请求失败 {url}: {last}")
 
 

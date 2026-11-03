@@ -34,6 +34,7 @@ def run_pipeline(
     *,
     do_collect: bool = True,
     do_process: bool = True,
+    do_fulltext: bool = True,
     do_interpret: bool = True,
     do_cluster: bool = True,
     do_daily: bool = True,
@@ -62,6 +63,10 @@ def run_pipeline(
             summary["collect"] = collect(settings, conn, source_keys=source_keys, force=force, logger=_log)
         if do_process:
             summary["process"] = process_new(settings, conn, llm, limit=int(settings.env("REPROHUB_PROCESS_LIMIT", "1000")), retry_errors=True, logger=_log)
+        if do_fulltext:
+            from ..fulltext import fetch_fulltexts  # 延迟导入，避免与 sources 循环
+
+            summary["fulltext"] = fetch_fulltexts(settings, conn, logger=_log)
         if do_interpret:
             summary["interpret"] = auto_interpret(settings, conn, llm, logger=_log)
         if do_cluster:

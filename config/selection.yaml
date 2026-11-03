@@ -35,6 +35,16 @@ interpret:
   auto_min_score: 72
   kinds: [paper, preprint, guideline]
   max_per_run: 20
+  # OA 全文解读：只用 Europe PMC（无需 key、无需机构授权）。已入选且 final_score ≥ fulltext_min_score
+  # 的文献先抓开放获取全文，取到就按全文解读（interpretations.basis='fulltext'），
+  # 取不到一律回退为「仅摘要解读」（basis='abstract'）并在界面/API 说明原因（非 OA / 无 PMCID / 抓取失败）。
+  fulltext_enabled: true
+  fulltext_min_score: 60
+  # 存库的全文上限（字符）：超出按节截断，优先保留 methods 与 results
+  fulltext_max_chars: 30000
+  # 每轮最多抓多少篇；抓取失败（非 OA / 无 PMCID 除外）多少天后重试
+  fulltext_max_per_run: 40
+  fulltext_retry_days: 14
 
 cluster:
   window_days: 14

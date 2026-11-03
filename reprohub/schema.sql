@@ -95,8 +95,25 @@ CREATE TABLE IF NOT EXISTS interpretations (
   model TEXT,
   is_mock INTEGER NOT NULL DEFAULT 0,
   effort TEXT,
+  -- 解读依据：fulltext（Europe PMC OA 全文）| abstract（仅摘要）
+  basis TEXT,
   created_at TEXT NOT NULL
 );
+
+-- OA 全文（Europe PMC JATS 抽取）。status=ok 才有 text；其余状态只记录原因，
+-- 界面据此说明「仅摘要解读」是为什么（非 OA / 无 PMCID / 抓取失败）。
+CREATE TABLE IF NOT EXISTS fulltexts (
+  item_id INTEGER PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'ok',
+  pmcid TEXT,
+  license TEXT,
+  source TEXT,
+  chars INTEGER NOT NULL DEFAULT 0,
+  text TEXT NOT NULL DEFAULT '',
+  error TEXT,
+  fetched_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fulltexts_status ON fulltexts(status);
 
 CREATE TABLE IF NOT EXISTS stories (
   id INTEGER PRIMARY KEY,

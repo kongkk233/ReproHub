@@ -11,6 +11,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Red
 
 from .. import repo
 from ..db import get_conn
+from ..fulltext import describe as fulltext_describe
+from ..fulltext import fetch_fulltexts, fetch_for_item
 from ..llm import EFFORT_LEVELS, LLM, LLMError, clear_overrides, llm_status, set_overrides, test_llm
 from ..pipeline.cluster import cluster_recent
 from ..pipeline.collect import collect
@@ -191,7 +193,23 @@ def item_page(request: Request, item_id: int):
     in_colls = set(repo.item_collections(conn, item_id))
     reading = repo.get_reading(conn, item_id)
     st = llm_status(settings, conn)
-    return _render(request, "item.html", title=it.get("title_zh") or it["title"], it=it, interp=interp, story=story, related=related, mentions=[dict(m) for m in mentions], collections=colls, in_collections=in_colls, reading=reading, llm=st)
+    ft = repo.get_fulltext(conn, item_id)
+    return _render(request, "item.html", title=it.get("title_zh") or it["title"], it=it, interp=interp, ft=ft, fulltext_note=fulltext_describe(ft),
+                   story=story, related=related, mentions=[dict(m) for m in mentions], collections=colls, in_collections=in_colls, reading=reading, llm=st)
+
+
+@router.post("/items/{item_id}/fulltext")
+def item_fulltext(request: Request, item_id: int, _=Depends(require_owner)):
+    """按需抓取该条的 Europe PMC OA 全文（不需要 API key）；结果说明带回页面。"""
+    from urllib.parse import quote
+
+    settings = _s(request)
+    conn = get_conn(settings)
+    it = repo.get_item(conn, item_id)
+    if not it:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    r = fetch_for_item(settings, conn, it, force=True)
+    return RedirectResponse(f"/items/{item_id}?fulltext=" + quote(str(r["reason"])[:300]) + "#fulltext", status_code=303)
 
 
 @router.post("/items/{item_id}/interpret")
@@ -401,6 +419,8 @@ def llms_txt(request: Request):
         f"- 热点事件: {base}/api/v1/stories",
         f"- 日报/周报/月报: {base}/api/v1/editions",
         f"- 状态与 LLM 模式: {base}/api/v1/status  （is_mock=true 表示该结果由规则占位生成，未调用模型）",
+        f"- 解读依据: {base}/api/v1/items/<id> 的 interpretation.basis = fulltext（Europe PMC OA 全文）或 abstract（仅摘要，"
+        f"原因见 fulltext.reason：非 OA / 无 PMCID / 抓取失败）；仅摘要解读不得当作全文解读引用",
         "",
         "## 主题",
     ] + [f"- {t['slug']}: {t['name']} ({t.get('name_en', '')})" for t in settings.topics]
@@ -494,6 +514,10 @@ def admin_run(request: Request, action: str = Form(...), key: str = Form(""), _=
             msgs.append(f"已清除 {repo.cache_clear(conn)} 条模型输出缓存")
         elif action == "interpret":
             auto_interpret(settings, conn, llm, logger=logger)
+        elif action == "fulltext":
+            r = fetch_fulltexts(settings, conn, limit=int(key) if key.isdigit() else None, logger=logger)
+            if not r["candidates"]:
+                msgs.append("没有需要抓取全文的条目（或 selection.yaml → interpret.fulltext_enabled=false）")
         elif action == "cluster":
             cluster_recent(settings, conn, llm, logger=logger)
         elif action == "daily":

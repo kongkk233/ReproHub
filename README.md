@@ -18,6 +18,7 @@
 | **期刊等级与影响因子** | `config/journals.yaml` 注册表（125 种，ISSN / 别名 / 正则匹配）把期刊分为 **CNS / 大子刊 / 综合顶刊 / 领域顶刊 / 普通 / 高发文量 OA 刊**，分别加权 +12 / +8 / +6 / +4 / 0 / −3 进入最终分；每条标注影响因子（近似 JCR 值，明确标注来源，可改、可 CSV 导入覆盖；未收录显示「IF 未收录」且不加减分）。CNS/大子刊的生殖相关文章由三路分工抓取并按 DOI 合并：PubMed（限定 40 余种顶刊 [ta]，有摘要，滞后 1-3 天）、Crossref（22 个顶刊 ISSN，当天有 DOI 但无摘要）、官方订阅（Cell Press In Press 带 eTOC 导读、Science First Release 带摘要片段、Nature 主题源）；`/top` 页、`tier=` 筛选、按 IF 排序、`/feed/top.xml`、`top-journal-alert` 推送规则。 |
 | **评分与入选** | 模型按新颖性 / 严谨性 / 领域影响 / 领域相关 / 转化价值五维评分 0-100，加偏好与来源等级修正得最终分；入选阈值按来源等级（期刊一手 60 / 学会机构 62 / 媒体 68）与类型微调。可选「评两次取均值并标记分歧」。 |
 | **文献解读** | 高分文献自动生成结构化中文解读：一句话结论 / 背景 / 设计与方法 / 主要发现 / 多组学视角 / 意义 / 局限 / 值得跟进 / 关键术语；其余在条目页一键按需生成。 |
+| **OA 全文解读** | 解读前先用 **Europe PMC**（无需 API key、无需机构授权）按 DOI（退而求其次 PMID）查 PMCID 与 OA 状态，开放获取的取 JATS 全文，去图表与参考文献后按 Abstract / Introduction / Methods / Results / Discussion 分节入库（超过 `interpret.fulltext_max_chars` 按节截断，优先保留 methods 与 results），解读写 `basis='fulltext'` 并标注「全文解读」。**取不到全文一律回退为「仅摘要解读」**（`basis='abstract'`），并在条目页 / API / RSS 说明原因（非 OA / 无 PMCID / 抓取失败）；提示词对两种依据给出不同指令——仅摘要时明令不得编造摘要中未出现的设计、样本量、图表与统计细节。全文来源、PMCID 与许可随文保存。 |
 | **事件与热度** | 近 14 天相关条目聚为事件（标题/摘要 Jaccard + 模型确认灰区）；热度按**独立来源**计（48 小时内每来源一次，24 小时减半，按来源等级加权），同一媒体多次报道不重复计热。 |
 | **日报 / 周报 / 月报** | 日报按本地日历日由规则编纂（当天持续更新，次日 08:00 定稿）；周报（周一）与月报（1 日）从日报汇编，模型只写总述与栏目导读。 |
 | **阅读管理** | 未读 / 在读 / 已读、星标、稍后读、五星评分、标签、Markdown 笔记、按课题分集合、只看未读；导出 Markdown / JSON / CSV / BibTeX，JSON 导入。 |
@@ -68,10 +69,11 @@ reprohub init                      初始化 .env / 数据库
 reprohub status                    状态、LLM 模式
 reprohub collect [--source KEY] [--force] [--days N]
 reprohub process [--retry-errors]  预筛与评分
+reprohub fulltext [--item ID] [--limit N] [--force]   抓 Europe PMC OA 全文（供全文解读；非 OA 会记录原因）
 reprohub interpret [--item ID] [--force]
 reprohub cluster                   事件聚类与热度
 reprohub edition daily|weekly|monthly [--key K] [--push] [--print]
-reprohub pipeline [--no-collect ...] [--force]
+reprohub pipeline [--no-collect ...] [--force]        （含 --no-fulltext）
 reprohub push-test CHANNEL         测试推送渠道
 reprohub serve [--host] [--port] [--reload] [--scheduler]
 reprohub run-forever               只跑调度
@@ -108,14 +110,14 @@ config/
   push.yaml          推送渠道与规则
   prompts/           prescreen / score / interpret / cluster / digest 提示词（Jinja2）
 reprohub/
-  settings.py  db.py  schema.sql  repo.py  textutil.py
+  settings.py  db.py  schema.sql  repo.py  textutil.py  fulltext.py（Europe PMC OA 全文）
   llm/         base.py  openai_compat.py  mock.py  __init__.py（门面、按步骤选模型、调用日志）
   sources/     pubmed  europepmc  biorxiv  crossref  rss  jsonapi  html_list
   pipeline/    classify  collect  score  interpret  cluster  editions  runner
   push/        channels（10 种渠道）  dispatcher（规则）
   web/         app.py  views.py  api.py  feeds.py  templates/  static/
   scheduler.py  cli.py  demo.py
-tests/         pytest，离线（63 个用例）
+tests/         pytest，离线（84 个用例）
 data/          SQLite、推送 outbox（git 忽略）
 ```
 
@@ -162,6 +164,15 @@ RSS 的 `params` 另有两项：`journal` 显式指定刊名（订阅标题不�
 
 `config/selection.yaml`：`scope.min_topic_score`（领域门槛）、`scoring.select_threshold`（入选）、`scoring.preference_weight / preference_cap`（偏好权重）、`interpret.auto_min_score`（自动解读）、`cluster.*`（聚类与热度）。
 
+### OA 全文解读（Europe PMC）
+
+只用 Europe PMC——它的检索与全文接口都无需 key、不受机构授权限制，因此不引入 OpenAlex / Unpaywall 或出版社 API。流程：`fulltext` 步骤按 DOI（无 DOI 时用 PMID）取 lite 记录 → 有 PMCID 且 `isOpenAccess` / `inEPMC` 为真时取 `fullTextXML`（JATS）→ 去图表、参考文献与例行小节后按 IMRaD 分节入库。
+
+- 阈值与开关都在 `config/selection.yaml → interpret`：`fulltext_enabled`、`fulltext_min_score`（默认 60）、`fulltext_max_chars`（默认 30000，超出按节截断，权重 methods = results > discussion > abstract / introduction）、`fulltext_max_per_run`、`fulltext_retry_days`（抓取失败多少天后重试；非 OA / 无 PMCID 是确定性结论，不再重复请求）。
+- 非 OA、无 PMCID、Europe PMC 无记录都会在 `fulltexts` 表留下状态与原因，条目页「解读依据」一行、`/api/v1/items/{id}` 的 `fulltext` 字段与 RSS 说明里都能看到；不会因为取不到全文就编造细节。
+- Europe PMC 整体不可达时本轮立即中止（不逐条重试），这些条目**不落库**，下次运行自动重试。
+- 条目页有「抓取 OA 全文」按钮（需管理员），后台「抓取 OA 全文」可批量执行；`pipeline` 在解读前自动跑一次。
+
 ### 推送
 
 `.env` 填渠道密钥 → `config/push.yaml` 把对应渠道 `enabled: true` → 规则里把渠道加入 `channels`。`reprohub push-test <channel>` 验证。
@@ -178,13 +189,14 @@ RSS 的 `params` 另有两项：`journal` 显式指定刊名（订阅标题不�
 ```
 GET  /api/v1/status                         LLM 模式、计数、渠道
 GET  /api/v1/items?selected=1&days=7&topic=early-embryo&order=score
-GET  /api/v1/items/{id}                     含 interpretation.markdown 与 is_mock
+GET  /api/v1/items/{id}                     含 interpretation（markdown / is_mock / basis）与 fulltext（available / status / pmcid / license / chars）
 GET  /api/v1/search?q=...                   FTS5 trigram，中英文子串
 GET  /api/v1/items?tier=top&order=if        顶刊（cns,cns-sub,general-top,field-top），按 IF 排序
 GET  /api/v1/journals                       期刊等级统计与注册表信息
 GET  /api/v1/stories  /api/v1/editions  /api/v1/topics  /api/v1/sources
 POST /api/v1/reading/{id}                   {"status":"read","starred":true,"tags":[],"notes":"","rating":5}
 POST /api/v1/items/{id}/interpret
+POST /api/v1/items/{id}/fulltext            抓 Europe PMC OA 全文（?force=false 可复用已有记录）
 POST /api/v1/collections  /api/v1/collections/{cid}/items/{id}
 POST /api/v1/ingest                         Bearer INGEST_TOKEN，批量推送条目入库
 POST /api/v1/admin/run                      {"collect":true,"process":true,...}
@@ -204,7 +216,7 @@ RSS：`/feed.xml` `/feed/top.xml` `/feed/all.xml` `/feed/papers.xml` `/feed/news
 pytest
 ```
 
-全部离线运行（HTTP 被屏蔽、LLM 强制模拟、不读 `.env`），覆盖文本工具、分类门槛与偏好、LLM 回退与真实客户端、提供商/模型/强度解析优先级与映射、来源解析、完整流水线、推送规则、Web 页面与 API。
+全部离线运行（HTTP 被屏蔽、LLM 强制模拟、不读 `.env`），覆盖文本工具、分类门槛与偏好、LLM 回退与真实客户端、提供商/模型/强度解析优先级与映射、来源解析、OA 全文抽取与按节截断、解读依据（全文 / 仅摘要）、完整流水线、推送规则、Web 页面与 API。
 
 ---
 

@@ -37,6 +37,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         "ALTER TABLE items ADD COLUMN journal_key TEXT",
         "ALTER TABLE items ADD COLUMN journal_tier TEXT",
         "ALTER TABLE items ADD COLUMN journal_if REAL",
+        "ALTER TABLE interpretations ADD COLUMN basis TEXT",
     ):
         try:
             conn.execute(stmt)

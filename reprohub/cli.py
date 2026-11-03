@@ -48,7 +48,7 @@ def cmd_status(args, settings):
     _print(f"LLM：{st['mode']}  provider={st.get('key') or st.get('provider')} model={st.get('model')} effort={st.get('effort')}" + (f"  原因：{st.get('reason')}" if st.get("reason") else ""))
     c = repo.counts(conn)
     _print(f"条目 {c['items']}（待评分 {c['new']}，已评分 {c['scored']}，入选 {c['selected']}，已过滤 {c['rejected']}，模拟评分 {c['mock_scored']}）")
-    _print(f"解读 {c['interpretations']}（模拟 {c['mock_interpretations']}）· 事件 {c['stories']} · 版次 {c['editions']} · 未读精选 {c['unread_selected']} · 缓存 {c['cache_entries']} 条")
+    _print(f"解读 {c['interpretations']}（模拟 {c['mock_interpretations']}）· 全文 {c['fulltexts']}（全文解读 {c['fulltext_interpretations']}）· 事件 {c['stories']} · 版次 {c['editions']} · 未读精选 {c['unread_selected']} · 缓存 {c['cache_entries']} 条")
     for r in repo.recent_runs(conn, 3):
         _print(f"运行 #{r['id']} {r['started_at'][:16]} {r['status']}")
 
@@ -93,9 +93,23 @@ def cmd_interpret(args, settings):
             r = interpret_item(settings, conn, llm, it, force=args.force)
         except LLMError as e:
             sys.exit(f"解读失败：{e}")
+        basis = (r or {}).get("basis") or "abstract"
+        if basis == "fulltext":
+            _print("依据：Europe PMC OA 全文")
+        else:
+            _print("依据：仅摘要（未取得全文；运行 `reprohub fulltext --item %d` 可再试，非 OA 文章只能如此）" % args.item)
         _print(r["markdown"] if r else "无")
     else:
         auto_interpret(settings, conn, llm, logger=_print)
+
+
+def cmd_fulltext(args, settings):
+    from .fulltext import fetch_fulltexts
+
+    conn = get_conn(settings)
+    r = fetch_fulltexts(settings, conn, item_id=args.item, limit=args.limit, force=args.force, logger=_print)
+    if args.item and not r["candidates"]:
+        _print(f"条目 {args.item} 不存在（或该条目不满足全文抓取条件）")
 
 
 def cmd_cluster(args, settings):
@@ -127,8 +141,9 @@ def cmd_pipeline(args, settings):
 
     conn = get_conn(settings)
     s = run_pipeline(
-        settings, conn, do_collect=not args.no_collect, do_process=not args.no_process, do_interpret=not args.no_interpret,
-        do_cluster=not args.no_cluster, do_daily=not args.no_daily, do_push=not args.no_push, force=args.force, source_keys=args.source or None, logger=_print,
+        settings, conn, do_collect=not args.no_collect, do_process=not args.no_process, do_fulltext=not args.no_fulltext,
+        do_interpret=not args.no_interpret, do_cluster=not args.no_cluster, do_daily=not args.no_daily,
+        do_push=not args.no_push, force=args.force, source_keys=args.source or None, logger=_print,
     )
     if s.get("error"):
         sys.exit(1)
@@ -307,6 +322,12 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--force", action="store_true")
     c.set_defaults(fn=cmd_interpret)
 
+    c = sub.add_parser("fulltext", help="抓取 Europe PMC OA 全文（供全文解读；非 OA 会记录原因）")
+    c.add_argument("--item", type=int, help="只处理指定条目")
+    c.add_argument("--limit", type=int, help="本轮上限")
+    c.add_argument("--force", action="store_true", help="已有记录也重新抓取")
+    c.set_defaults(fn=cmd_fulltext)
+
     sub.add_parser("cluster", help="事件聚类与热度").set_defaults(fn=cmd_cluster)
 
     c = sub.add_parser("edition", help="生成日报/周报/月报")
@@ -317,7 +338,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.set_defaults(fn=cmd_edition)
 
     c = sub.add_parser("pipeline", help="完整流水线")
-    for flag in ("collect", "process", "interpret", "cluster", "daily", "push"):
+    for flag in ("collect", "process", "fulltext", "interpret", "cluster", "daily", "push"):
         c.add_argument(f"--no-{flag}", action="store_true")
     c.add_argument("--force", action="store_true")
     c.add_argument("--source", action="append")

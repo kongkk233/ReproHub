@@ -12,7 +12,7 @@
     偏好分乘以 {{ selection.scoring.preference_weight }} 后加到最终分（上限 +{{ selection.scoring.preference_cap }}）。未命中任何偏好的领域内内容照常收录。</li>
   <li><b>期刊等级与影响因子</b>：<code>config/journals.yaml</code> 把期刊分为 CNS / 大子刊 / 综合顶刊 / 领域顶刊 / 普通 / 高发文量 OA 刊，分别加权 +12 / +8 / +6 / +4 / 0 / −3；影响因子为{{ IF_SOURCE }}，未收录期刊显示「IF 未收录」且不加减分。顶刊单独有 <a href="/top">顶刊</a> 页、<code>/feed/top.xml</code> 与专门的 PubMed / Crossref 来源。</li>
   <li><b>评分与入选</b>：模型按新颖性、严谨性、领域影响、领域相关、转化价值五个维度评 0-100，加偏好与来源等级修正得最终分；入选阈值按来源等级为 {{ selection.scoring.select_threshold }}。</li>
-  <li><b>文献解读</b>：最终分 ≥ {{ selection.interpret.auto_min_score }} 的文献自动生成结构化中文解读（背景 / 设计 / 发现 / 多组学视角 / 意义 / 局限 / 术语），其余可在条目页按需生成。</li>
+  <li><b>文献解读</b>：最终分 ≥ {{ selection.interpret.auto_min_score }} 的文献自动生成结构化中文解读（背景 / 设计 / 发现 / 多组学视角 / 意义 / 局限 / 术语），其余可在条目页按需生成。解读前先取 <b>Europe PMC 开放获取全文</b>（≥ {{ selection.interpret.fulltext_min_score }} 分，取 JATS 正文、去图表与参考文献、超长按节截断），取到就标「全文解读」，取不到一律标「仅摘要解读」并说明原因（非 OA / 无 PMCID / 抓取失败）——仅摘要时不会编造原文未提供的方法、图表与统计细节。</li>
   <li><b>事件与热度</b>：近 {{ selection.cluster.window_days }} 天内相关条目聚为事件；热度按独立来源计（48 小时内每来源一次，24 小时减半），同一媒体多次报道不重复计热。</li>
   <li><b>日报 / 周报 / 月报</b>：日报由规则编纂，周报月报从日报汇编，模型只写总述与栏目导读。</li>
   <li><b>阅读管理</b>：未读 / 在读 / 已读、星标、稍后读、五星评分、标签、Markdown 笔记、按课题分集合；可导出 Markdown / JSON / CSV / BibTeX。</li>
@@ -26,7 +26,7 @@
 没有 API key 时系统进入<b>明确标识的模拟模式</b>：评分由规则生成、解读只抽取原文句子、周报总述只做统计描述；所有这类结果在数据库、页面、RSS 与 API 中都带 <code>is_mock=true</code>，绝不伪报为真实模型调用。设置 <code>LLM_ALLOW_MOCK_FALLBACK=false</code> 可改为缺 key 直接报错。</p>
 
 <h3>数据概况</h3>
-<div class="stats"><span><b>{{ counts['items'] }}</b> 条目</span><span><b>{{ counts.selected }}</b> 入选</span><span><b>{{ counts.interpretations }}</b> 解读</span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span><span><b>{{ sources|length }}</b> 来源</span>{% if counts.mock_scored %}<span><b>{{ counts.mock_scored }}</b> 模拟评分</span>{% endif %}</div>
+<div class="stats"><span><b>{{ counts['items'] }}</b> 条目</span><span><b>{{ counts.selected }}</b> 入选</span><span><b>{{ counts.interpretations }}</b> 解读（全文 {{ counts.fulltext_interpretations }}）</span><span><b>{{ counts.fulltexts }}</b> 篇 OA 全文</span><span><b>{{ counts.stories }}</b> 事件</span><span><b>{{ counts.editions }}</b> 版次</span><span><b>{{ sources|length }}</b> 来源</span>{% if counts.mock_scored %}<span><b>{{ counts.mock_scored }}</b> 模拟评分</span>{% endif %}</div>
 
 <h3>致谢</h3>
 <p class="small">项目框架参考 <a href="https://github.com/KKKKhazix/AIHOT" rel="noopener">AIHOT</a>（自己找热点、自己写日报的网站框架）；界面风格参考 <a href="https://bearblog.dev/" rel="noopener">Bear Blog</a>。</p>

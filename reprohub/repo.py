@@ -157,7 +157,10 @@ def update_item(conn: sqlite3.Connection, item_id: int, **fields: Any) -> None:
 ITEM_COLS = """i.*, s.key AS source_key, s.name AS source_name, s.tier AS source_tier, s.type AS source_type,
                  r.status AS read_status, r.starred, r.read_later, r.rating, r.tags AS tags, r.notes AS notes,
                  (SELECT COUNT(*) FROM item_mentions m WHERE m.item_id=i.id) AS mention_count,
-                 (SELECT 1 FROM interpretations x WHERE x.item_id=i.id) AS has_interpretation"""
+                 (SELECT 1 FROM interpretations x WHERE x.item_id=i.id) AS has_interpretation,
+                 (SELECT x.basis FROM interpretations x WHERE x.item_id=i.id) AS interp_basis,
+                 (SELECT f.status FROM fulltexts f WHERE f.item_id=i.id) AS fulltext_status,
+                 (SELECT f.pmcid FROM fulltexts f WHERE f.item_id=i.id) AS fulltext_pmcid"""
 ITEM_FROM = "FROM items i JOIN sources s ON s.id=i.source_id LEFT JOIN reading r ON r.item_id=i.id"
 ITEM_SELECT = f"SELECT {ITEM_COLS} {ITEM_FROM}"
 
@@ -274,7 +277,13 @@ def items_needing_interpretation(conn: sqlite3.Connection, min_score: float, kin
     q = ",".join("?" * len(kinds))
     rows = conn.execute(
         ITEM_SELECT + f""" WHERE i.selected=1 AND COALESCE(i.final_score,0)>=? AND i.kind IN ({q})
-                           AND NOT EXISTS (SELECT 1 FROM interpretations x WHERE x.item_id=i.id AND x.is_mock=0)
+                           AND (
+                             -- 还没有真实解读
+                             NOT EXISTS (SELECT 1 FROM interpretations x WHERE x.item_id=i.id AND x.is_mock=0)
+                             -- 或已有真实解读、但此前只有摘要，现在拿到了 OA 全文 → 用全文重做
+                             OR EXISTS (SELECT 1 FROM interpretations x JOIN fulltexts f ON f.item_id=x.item_id
+                                        WHERE x.item_id=i.id AND x.is_mock=0 AND COALESCE(x.basis,'abstract')<>'fulltext' AND f.status='ok')
+                           )
                            ORDER BY i.final_score DESC LIMIT ?""",
         [min_score, *kinds, limit],
     )
@@ -321,6 +330,8 @@ def counts(conn: sqlite3.Connection) -> dict:
     ).fetchone()[0]
     c["mock_scored"] = conn.execute("SELECT COUNT(*) FROM items WHERE status='scored' AND llm_is_mock=1").fetchone()[0]
     c["mock_interpretations"] = conn.execute("SELECT COUNT(*) FROM interpretations WHERE is_mock=1").fetchone()[0]
+    c["fulltext_interpretations"] = conn.execute("SELECT COUNT(*) FROM interpretations WHERE basis='fulltext'").fetchone()[0]
+    c["fulltexts"] = conn.execute("SELECT COUNT(*) FROM fulltexts WHERE status='ok'").fetchone()[0]
     c["cache_entries"] = conn.execute("SELECT COUNT(*) FROM llm_cache").fetchone()[0]
     return c
 
@@ -347,14 +358,67 @@ def get_interpretation(conn: sqlite3.Connection, item_id: int) -> dict | None:
     return d
 
 
-def save_interpretation(conn: sqlite3.Connection, item_id: int, content: dict, markdown: str, *, provider: str, model: str, is_mock: bool, effort: str | None = None) -> None:
+def save_interpretation(conn: sqlite3.Connection, item_id: int, content: dict, markdown: str, *, provider: str, model: str, is_mock: bool, effort: str | None = None, basis: str | None = None) -> None:
     conn.execute(
-        """INSERT INTO interpretations(item_id, content_json, markdown, provider, model, is_mock, effort, created_at)
-           VALUES(?,?,?,?,?,?,?,?)
+        """INSERT INTO interpretations(item_id, content_json, markdown, provider, model, is_mock, effort, basis, created_at)
+           VALUES(?,?,?,?,?,?,?,?,?)
            ON CONFLICT(item_id) DO UPDATE SET content_json=excluded.content_json, markdown=excluded.markdown,
-             provider=excluded.provider, model=excluded.model, is_mock=excluded.is_mock, effort=excluded.effort, created_at=excluded.created_at""",
-        (item_id, json.dumps(content, ensure_ascii=False), markdown, provider, model, 1 if is_mock else 0, effort, now_iso()),
+             provider=excluded.provider, model=excluded.model, is_mock=excluded.is_mock, effort=excluded.effort,
+             basis=excluded.basis, created_at=excluded.created_at""",
+        (item_id, json.dumps(content, ensure_ascii=False), markdown, provider, model, 1 if is_mock else 0, effort, basis, now_iso()),
     )
+
+
+# ============================================================ fulltexts（Europe PMC OA 全文）
+FULLTEXT_COLS = "item_id, status, pmcid, license, source, chars, error, fetched_at"
+
+
+def get_fulltext(conn: sqlite3.Connection, item_id: int, *, with_text: bool = False) -> dict | None:
+    cols = "*" if with_text else FULLTEXT_COLS
+    return row_to_dict(conn.execute(f"SELECT {cols} FROM fulltexts WHERE item_id=?", (item_id,)).fetchone())
+
+
+def save_fulltext(conn: sqlite3.Connection, item_id: int, *, status: str, pmcid: str | None = None, license: str | None = None,
+                  source: str | None = None, chars: int = 0, text: str = "", error: str | None = None) -> None:
+    conn.execute(
+        """INSERT INTO fulltexts(item_id, status, pmcid, license, source, chars, text, error, fetched_at)
+           VALUES(?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(item_id) DO UPDATE SET status=excluded.status, pmcid=excluded.pmcid, license=excluded.license,
+             source=excluded.source, chars=excluded.chars, text=excluded.text, error=excluded.error, fetched_at=excluded.fetched_at""",
+        (item_id, status, pmcid, license, source, int(chars or 0), text or "", error or None, now_iso()),
+    )
+
+
+def items_needing_fulltext(conn: sqlite3.Connection, min_score: float, kinds: list[str], limit: int, *, retry_days: int = 14,
+                           ignore_existing: bool = False) -> list[dict]:
+    """已入选/高分、且还没有可用全文的条目。
+
+    非 OA / 无 PMCID / 无标识是确定性结论，不再重试；抓取失败（error）过了 retry_days 天会重试。
+    ignore_existing=True（CLI --force）时不再看已有记录，全部重抓。
+    """
+    q = ",".join("?" * len(kinds))
+    cutoff = (now_utc() - timedelta(days=max(0, int(retry_days)))).isoformat(timespec="seconds")
+    existing_filter = "" if ignore_existing else """
+                           AND NOT EXISTS (
+                             SELECT 1 FROM fulltexts f WHERE f.item_id=i.id
+                               AND (f.status IN ('ok','no_id','not_found','no_pmcid','non_oa') OR f.fetched_at>=?)
+                           )"""
+    args: list[Any] = [min_score, *kinds]
+    if not ignore_existing:
+        args.append(cutoff)
+    args.append(limit)
+    rows = conn.execute(
+        ITEM_SELECT + f""" WHERE i.selected=1 AND COALESCE(i.final_score,0)>=? AND i.kind IN ({q}){existing_filter}
+                           ORDER BY COALESCE(i.final_score,0) DESC, i.id DESC LIMIT ?""",
+        args,
+    )
+    return rows_to_dicts(rows)
+
+
+def fulltext_stats(conn: sqlite3.Connection) -> dict:
+    by_status = {r["status"]: r["n"] for r in conn.execute("SELECT status, COUNT(*) AS n FROM fulltexts GROUP BY status")}
+    row = conn.execute("SELECT COUNT(*) AS n, COALESCE(SUM(chars),0) AS chars FROM fulltexts WHERE status='ok'").fetchone()
+    return {"available": int(row["n"]), "chars": int(row["chars"]), "by_status": by_status}
 
 
 # ============================================================ stories

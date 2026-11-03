@@ -48,6 +48,10 @@ def _entry(settings, it: dict) -> dict:
     desc_parts = [f"{mock}评分 {it.get('final_score')} · {it.get('source_name')}{jinfo}"]
     if it.get("title_zh"):
         desc_parts.append(it["title"])
+    if it.get("interp_basis"):
+        desc_parts.append("解读：" + ("全文解读（Europe PMC OA 全文）" if it["interp_basis"] == "fulltext" else "仅摘要解读（未取得全文）"))
+    elif it.get("fulltext_status") == "ok":
+        desc_parts.append("已存 Europe PMC OA 全文")
     if it.get("preference_labels"):
         desc_parts.append("偏好：" + "、".join(it["preference_labels"]))
     desc_parts.append(it.get("summary_zh") or (it.get("summary") or "")[:800])

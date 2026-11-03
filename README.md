@@ -12,10 +12,10 @@
 
 | 能力 | 说明 |
 |---|---|
-| **聚合** | PubMed E-utilities、Europe PMC（含预印本）、bioRxiv/medRxiv、Crossref（核心期刊 ISSN）、期刊/媒体 RSS、通用 JSON API、HTML 列表页、API 推送入库。按 DOI / PMID / URL / 标题指纹去重；同一篇被多源收录只保留一条并记录「另外 N 个来源也收录」。 |
+| **聚合** | PubMed E-utilities、Europe PMC（含预印本）、bioRxiv/medRxiv、Crossref（核心期刊 ISSN）、期刊/媒体 RSS（含 Cell Press In Press、Science First Release、Nature 主题源）、通用 JSON API、HTML 列表页、API 推送入库。按 DOI / PMID / URL / 标题指纹去重；同一篇被多源收录只保留一条并记录「另外 N 个来源也收录」，后到的来源补全先到者缺的摘要 / DOI / PMID / 作者 / 刊名（刊名随之定级）。 |
 | **领域门槛** | 22 个主题覆盖生殖与辅助生殖全领域（早期胚胎、卵母细胞、精子/男性、ART 临床、PGT、胚胎实验室、内膜与植入、生殖内分泌、生殖遗传、生殖干细胞/IVG、早孕与流产、生育力保存、生殖免疫、微生物组、避孕与生殖健康、生殖毒理、生殖衰老、AI、伦理法规、产业政策、动物模型、多组学方法）。**属于该领域是收录门槛**；横切主题（组学方法 / AI / 动物模型）单独命中不算在领域内。 |
 | **重点偏好（只加权）** | 早期胚胎转录组 + 蛋白质组联合分析、胚胎/卵母细胞蛋白质组、胚胎单细胞转录组、多组学整合、母源-合子转换、人类胚胎材料、胚胎表观组、干细胞胚胎模型、可转化到 ART 实验室的发现。命中后加分提升排序与入选概率，**不是收录条件**，未命中的领域内内容照常收录。 |
-| **期刊等级与影响因子** | `config/journals.yaml` 注册表（125 种，ISSN / 别名 / 正则匹配）把期刊分为 **CNS / 大子刊 / 综合顶刊 / 领域顶刊 / 普通 / 高发文量 OA 刊**，分别加权 +12 / +8 / +6 / +4 / 0 / −3 进入最终分；每条标注影响因子（近似 JCR 值，明确标注来源，可改、可 CSV 导入覆盖；未收录显示「IF 未收录」且不加减分）。专门的 PubMed（限定 40 余种顶刊 [ta]）与 Crossref（22 个顶刊 ISSN）来源保证 CNS/大子刊的生殖相关文章能被抓到；`/top` 页、`tier=` 筛选、按 IF 排序、`/feed/top.xml`、`top-journal-alert` 推送规则。 |
+| **期刊等级与影响因子** | `config/journals.yaml` 注册表（125 种，ISSN / 别名 / 正则匹配）把期刊分为 **CNS / 大子刊 / 综合顶刊 / 领域顶刊 / 普通 / 高发文量 OA 刊**，分别加权 +12 / +8 / +6 / +4 / 0 / −3 进入最终分；每条标注影响因子（近似 JCR 值，明确标注来源，可改、可 CSV 导入覆盖；未收录显示「IF 未收录」且不加减分）。CNS/大子刊的生殖相关文章由三路分工抓取并按 DOI 合并：PubMed（限定 40 余种顶刊 [ta]，有摘要，滞后 1-3 天）、Crossref（22 个顶刊 ISSN，当天有 DOI 但无摘要）、官方订阅（Cell Press In Press 带 eTOC 导读、Science First Release 带摘要片段、Nature 主题源）；`/top` 页、`tier=` 筛选、按 IF 排序、`/feed/top.xml`、`top-journal-alert` 推送规则。 |
 | **评分与入选** | 模型按新颖性 / 严谨性 / 领域影响 / 领域相关 / 转化价值五维评分 0-100，加偏好与来源等级修正得最终分；入选阈值按来源等级（期刊一手 60 / 学会机构 62 / 媒体 68）与类型微调。可选「评两次取均值并标记分歧」。 |
 | **文献解读** | 高分文献自动生成结构化中文解读：一句话结论 / 背景 / 设计与方法 / 主要发现 / 多组学视角 / 意义 / 局限 / 值得跟进 / 关键术语；其余在条目页一键按需生成。 |
 | **事件与热度** | 近 14 天相关条目聚为事件（标题/摘要 Jaccard + 模型确认灰区）；热度按**独立来源**计（48 小时内每来源一次，24 小时减半，按来源等级加权），同一媒体多次报道不重复计热。 |
@@ -115,7 +115,7 @@ reprohub/
   push/        channels（10 种渠道）  dispatcher（规则）
   web/         app.py  views.py  api.py  feeds.py  templates/  static/
   scheduler.py  cli.py  demo.py
-tests/         pytest，离线（58 个用例）
+tests/         pytest，离线（63 个用例）
 data/          SQLite、推送 outbox（git 忽略）
 ```
 
@@ -148,6 +148,7 @@ data/          SQLite、推送 outbox（git 忽略）
 ### 加来源
 
 `config/sources.yaml` 一条即可。字段：`type`（pubmed / europepmc / biorxiv / crossref / rss / jsonapi / html_list / push）、`tier`（1 一手 / 2 机构 / 3 媒体）、`kind`、`in_scope_default`（来源本身即领域内）、`scope_filter`（综合性来源入库前先过领域门槛）、`interval_minutes`、`params`。
+RSS 的 `params` 另有两项：`journal` 显式指定刊名（订阅标题不是刊名时，如 Science First Release → `Science`，否则定不了期刊等级）；`aggregate: true` 标记多刊聚合源（nature.com 主题源），条目刊名留空，待 PubMed / Crossref 合并时补全并定级。nature.com 链接的 DOI 由文章号推出（`10.1038/<id>`），所以主题源条目也能按 DOI 去重。
 微信公众号等可经 RSSHub 转为 RSS：设置 `RSSHUB_BASE`，在 `params.url` 中用 `${RSSHUB_BASE}/...`。
 
 ### 期刊等级与影响因子

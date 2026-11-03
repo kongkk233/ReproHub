@@ -31,6 +31,32 @@ def test_scope_filter_drops_out_of_scope_for_general_sources(settings, conn):
     assert st == "dropped" and iid is None
 
 
+def test_duplicate_merge_fills_missing_fields_and_upgrades_journal_tier(settings, conn):
+    doi = "10.1038/s41586-026-00001-1"
+    title = "Single-cell proteomic landscape of human preimplantation embryos"
+    # 主题源先到：只有标题与链接，刊名未知、无摘要
+    iid, st = ingest_item(conn, settings, "rss-nature-reprobio", RawItem(url=f"https://www.nature.com/articles/{doi[8:]}", title=title, summary="", doi=doi))
+    assert st == "new"
+    before = repo.get_item(conn, iid)
+    assert before["journal"] is None and before["journal_tier"] == "unknown" and not before["summary"] and not before["authors"]
+    # PubMed 后到：同一 DOI，带摘要、PMID、作者、刊名 → 合并为重复并补全，等级随之定为 CNS
+    _, st2 = ingest_item(
+        conn, settings, "pubmed-embryo-omics",
+        RawItem(url="https://pubmed.ncbi.nlm.nih.gov/40000002/", title=title, summary="Proteome of 1,000 single blastomeres.", doi=doi, pmid="40000002", journal="Nature", authors=["Zhang Y"], extra={"issn": "0028-0836"}),
+    )
+    assert st2 == "duplicate"
+    after = repo.get_item(conn, iid)
+    assert after["pmid"] == "40000002" and after["summary"].startswith("Proteome") and after["authors"] == ["Zhang Y"]
+    assert after["journal"] == "Nature" and after["journal_tier"] == "cns" and after["journal_key"] == "nature"
+    # 刊名存在但定不了级（订阅名）时，也被能定级的来源纠正；已定级的刊名不会被覆盖
+    jid, _ = ingest_item(conn, settings, "ingest", RawItem(url="https://example.org/j", title="Oocyte aging proteome across the reproductive lifespan", summary="", journal="Reproductive biology: nature.com subject feeds"))
+    assert repo.get_item(conn, jid)["journal_tier"] == "unknown"
+    ingest_item(conn, settings, "ingest", RawItem(url="https://example.org/j2", title="Oocyte aging proteome across the reproductive lifespan", summary="", journal="Nat Aging"))
+    ingest_item(conn, settings, "ingest", RawItem(url="https://example.org/j3", title="Oocyte aging proteome across the reproductive lifespan", summary="", journal="Cell"))
+    fixed = repo.get_item(conn, jid)
+    assert fixed["journal"] == "Nat Aging" and fixed["journal_tier"] == "cns-sub"
+
+
 def test_full_offline_pipeline_marks_everything_mock(settings, seeded):
     conn = seeded
     llm = LLM(settings, conn)

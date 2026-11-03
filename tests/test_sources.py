@@ -79,6 +79,84 @@ def test_rss_requires_url(settings):
         f.fetch(datetime.now(timezone.utc))
 
 
+# Cell Press In Press（RDF）：全部作者挤在一个 dc:creator，DOI 在 dc:identifier，日期在 dc:date
+CELL_RDF = """<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:prism="http://prismstandard.org/namespaces/1.2/basic/">
+<channel rdf:about="https://www.cell.com/cell/inpress.rss"><title>Cell</title><link>https://www.cell.com/cell/inpress</link></channel>
+<item rdf:about="https://www.cell.com/cell/fulltext/S0092-8674(26)01265-1?rss=yes">
+<title>Single-cell multi-omics of human blastocysts</title>
+<link>https://www.cell.com/cell/fulltext/S0092-8674(26)01265-1?rss=yes</link>
+<description>Integration of transcriptome and proteome of human blastocysts reveals lineage programs.</description>
+<dc:creator>Mathilde Poyet, Malte Rühlemann, Eric J. Alm</dc:creator>
+<dc:identifier>10.1016/j.cell.2026.10.016</dc:identifier>
+<dc:date>2026-11-02</dc:date>
+</item></rdf:RDF>""".encode()
+
+# Science First Release（RSS 2.0）：标题带 " | Science" 后缀，DOI 只在链接里，订阅标题不是刊名
+SCIENCE_AOP = b"""<?xml version='1.0' encoding='UTF-8'?>
+<rss version="2.0"><channel><title>Science First Release</title>
+<item><title>Oocyte proteostasis sets the embryo clock | Science</title>
+<link>https://www.science.org/doi/10.1126/science.adv9181</link>
+<description>Mammalian oocytes maintain a proteome for decades.</description>
+<pubDate>Thu, 29 Oct 2026 09:01:00 -0400</pubDate></item>
+</channel></rss>"""
+
+# nature.com 主题源：只有标题、链接、日期；刊名未知，DOI 由文章号推出
+NATURE_SUBJECT = b"""<?xml version="1.0"?><rss version="2.0"><channel><title>Reproductive biology : nature.com subject feeds</title>
+<item><title>Myristic acid promotes in vitro maturation of porcine oocytes</title>
+<link>https://www.nature.com/articles/s42003-026-11222-8</link>
+<pubDate>Thu, 29 Oct 2026 00:00:00 +0000</pubDate></item>
+<item><title>Legacy identifier still maps</title><link>https://www.nature.com/articles/nmeth.2019?error=cookies</link></item>
+</channel></rss>"""
+
+
+def _rss(monkeypatch, settings, body: bytes, params: dict):
+    import httpx
+
+    real = httpx.Client
+
+    class Patched(real):
+        def __init__(self, *a, **k):
+            k["transport"] = httpx.MockTransport(lambda req: httpx.Response(200, content=body))
+            super().__init__(*a, **k)
+
+    monkeypatch.setattr(httpx, "Client", Patched)
+    return RSSFetcher({"key": "rss-x", "name": "X", "params": {"url": "https://example.org/feed", **params}}, settings).fetch(datetime(2026, 1, 1, tzinfo=timezone.utc))
+
+
+def test_rss_cell_press_splits_authors_and_reads_dc_identifier(settings, monkeypatch):
+    (it,) = _rss(monkeypatch, settings, CELL_RDF, {})
+    assert it.journal == "Cell" and it.doi == "10.1016/j.cell.2026.10.016"
+    assert it.authors == ["Mathilde Poyet", "Malte Rühlemann", "Eric J. Alm"]
+    assert it.published_at == datetime(2026, 11, 2, tzinfo=timezone.utc)
+    assert it.summary.startswith("Integration of transcriptome")
+
+
+def test_rss_explicit_journal_strips_title_suffix_and_takes_doi_from_link(settings, monkeypatch):
+    (it,) = _rss(monkeypatch, settings, SCIENCE_AOP, {"journal": "Science"})
+    assert it.title == "Oocyte proteostasis sets the embryo clock"
+    assert it.journal == "Science" and it.doi == "10.1126/science.adv9181"
+
+
+def test_rss_aggregate_feed_leaves_journal_unknown_but_derives_nature_doi(settings, monkeypatch):
+    a, b = _rss(monkeypatch, settings, NATURE_SUBJECT, {"aggregate": True})
+    assert a.journal is None and b.journal is None
+    assert a.doi == "10.1038/s42003-026-11222-8"
+    assert b.doi == "10.1038/nmeth.2019"
+    # 不标 aggregate 时沿用订阅标题（旧行为；strip_html 会把 " : " 收成 ": "）
+    (c, _) = _rss(monkeypatch, settings, NATURE_SUBJECT, {})
+    assert c.journal == "Reproductive biology: nature.com subject feeds"
+
+
+def test_rss_author_split_is_conservative():
+    from reprohub.sources.rss import _split_authors
+
+    assert _split_authors(["Smith, J."]) == ["Smith, J."]  # 「姓, 名缩写」不拆
+    assert _split_authors(["Jane Doe, PhD"]) == ["Jane Doe, PhD"]
+    assert _split_authors(["Jane Doe, John Smith"]) == ["Jane Doe", "John Smith"]
+    assert _split_authors(["A", "B"]) == ["A", "B"]  # 多个 dc:creator 原样保留
+
+
 def test_crossref_date_and_jsonapi_dig():
     assert _date({"published-online": {"date-parts": [[2026, 11]]}}) == datetime(2026, 11, 1, tzinfo=timezone.utc)
     assert _date({"created": {"date-parts": [[None]]}}) is None

@@ -272,6 +272,8 @@ sources:
     in_scope_default: true
     params: { url: "https://www.rbmojournal.com/current.rss" }
 
+  # Nature 主题源：全家族（Nature / Nat Commun / Commun Biol …）按学科聚合，只有标题与链接，不带刊名与摘要；
+  # aggregate: true → 刊名留空待 PubMed / Crossref 合并时补全并定级，DOI 由 nature.com 文章号推出（10.1038/<id>）
   - key: rss-nature-reprobio
     name: Nature 系 · Reproductive biology 主题
     type: rss
@@ -280,7 +282,7 @@ sources:
     enabled: true
     interval_minutes: 360
     in_scope_default: true
-    params: { url: "https://www.nature.com/subjects/reproductive-biology.rss" }
+    params: { url: "https://www.nature.com/subjects/reproductive-biology.rss", aggregate: true }
 
   - key: rss-nature-embryology
     name: Nature 系 · Embryology 主题
@@ -291,7 +293,91 @@ sources:
     interval_minutes: 360
     in_scope_default: false
     scope_filter: true
-    params: { url: "https://www.nature.com/subjects/embryology.rss" }
+    params: { url: "https://www.nature.com/subjects/embryology.rss", aggregate: true }
+
+  # ------------------------------------- CNS 官方订阅（与 pubmed-top-journals / crossref-cns 分工，不是重复）
+  # PubMed：有摘要、查询里已按生殖术语筛过，但上线后滞后 1-3 天 —— CNS 文献的主干；
+  # Crossref：上线当天即有 DOI，但 Elsevier / AAAS 不向 Crossref 存摘要，只能靠标题过领域门槛；
+  # 官方订阅：上线当天即有，Cell Press In Press 带 eTOC 导读、Science First Release 带摘要片段，能把标题看不出领域的文章留住。
+  # 三者按 DOI 合并为一条，后到的来源补全摘要 / 刊名 / PMID。
+  # 评估后未接入：Nature 各刊目录 RSS（主题源已覆盖全家族，目录源还夹杂新闻与更正）；Science Advances 目录 RSS（无摘要，与 crossref-cns 重复）；
+  # Springer Nature / Elsevier 官方 API（元数据与 Crossref 重复，需 key，全文受机构授权限制）；OpenAlex（入库滞后数天，不适合发现；引用数 / OA 状态属补充，按需再加）。
+  - key: rss-science-first-release
+    name: Science · First Release（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 240
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://feeds.science.org/rss/science-aop.xml", journal: Science }   # 订阅标题是 "Science First Release"，显式指定刊名才能定级
+
+  - key: rss-cell-inpress
+    name: Cell · In Press（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.cell.com/cell/inpress.rss" }
+
+  - key: rss-cell-stem-cell-inpress
+    name: Cell Stem Cell · In Press（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.cell.com/cell-stem-cell/inpress.rss" }
+
+  - key: rss-dev-cell-inpress
+    name: Developmental Cell · In Press（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.cell.com/developmental-cell/inpress.rss" }
+
+  - key: rss-mol-cell-inpress
+    name: Molecular Cell · In Press（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.cell.com/molecular-cell/inpress.rss" }
+
+  - key: rss-cell-reports-inpress
+    name: Cell Reports · In Press（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.cell.com/cell-reports/inpress.rss" }
+
+  - key: rss-cell-genomics-inpress
+    name: Cell Genomics · In Press（领域过滤）
+    type: rss
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true
+    params: { url: "https://www.cell.com/cell-genomics/inpress.rss" }
 
   - key: rss-biorxiv-devbio
     name: bioRxiv · Developmental Biology RSS（领域过滤）

@@ -66,6 +66,24 @@ def normalize(raw: RawItem, src_cfg: dict, classifier: Classifier, registry: Jou
     }
 
 
+def merge_duplicate(conn: sqlite3.Connection, existing: dict, d: dict, source_id: int) -> dict:
+    """同一篇被另一来源收录：记一次提及，并用新来源补全已有条目缺的字段。
+
+    主题源 / In Press 订阅往往只有标题（无摘要、无 DOI、刊名未知），几天后 PubMed / Crossref 才带来摘要、PMID 与刊名；
+    期刊字段在原条目无刊名、或刊名定不了级（聚合源名、订阅名）而新来源能定级时，连同等级 / IF 一并更新。返回实际补全的字段。
+    """
+    repo.add_mention(conn, existing["id"], source_id, d["url"])
+    fill = {k: d[k] for k in ("summary", "doi", "pmid", "published_at") if d.get(k) and not existing.get(k)}
+    if d.get("authors") and not existing.get("authors"):
+        fill["authors"] = d["authors"]
+    unresolved = existing.get("journal_tier") in (None, "unknown")
+    if d.get("journal") and (not existing.get("journal") or (unresolved and d.get("journal_tier") not in (None, "unknown"))):
+        fill.update(journal=d["journal"], journal_key=d.get("journal_key"), journal_tier=d.get("journal_tier"), journal_if=d.get("journal_if"))
+    if fill:
+        repo.update_item(conn, existing["id"], **fill)
+    return fill
+
+
 def ingest_item(conn: sqlite3.Connection, settings: Settings, source_key: str, raw: RawItem, classifier: Classifier | None = None) -> tuple[int | None, str]:
     """单条入库（API 推送 / 演示数据）。返回 (item_id, 'new'|'duplicate'|'dropped')。"""
     classifier = classifier or Classifier(settings)
@@ -82,7 +100,7 @@ def ingest_item(conn: sqlite3.Connection, settings: Settings, source_key: str, r
         return None, "dropped"
     dup = repo.find_duplicate(conn, doi=d["doi"], pmid=d["pmid"], uhash=d["url_hash"], title_fp=d["title_fp"])
     if dup:
-        repo.add_mention(conn, dup["id"], src["id"], d["url"])
+        merge_duplicate(conn, dup, d, src["id"])
         return dup["id"], "duplicate"
     return repo.insert_item(conn, src["id"], d), "new"
 
@@ -148,10 +166,7 @@ def collect(
                     continue
                 existing = repo.find_duplicate(conn, doi=d["doi"], pmid=d["pmid"], uhash=d["url_hash"], title_fp=d["title_fp"])
                 if existing:
-                    repo.add_mention(conn, existing["id"], src["id"], d["url"])
-                    # 补全：已有条目缺摘要而新来源有，则补上
-                    if not existing.get("summary") and d["summary"]:
-                        repo.update_item(conn, existing["id"], summary=d["summary"])
+                    merge_duplicate(conn, existing, d, src["id"])
                     dup += 1
                     continue
                 repo.insert_item(conn, src["id"], d)

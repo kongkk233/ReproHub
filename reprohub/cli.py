@@ -223,6 +223,44 @@ def cmd_llm(args, settings):
         _print(f"{key} 端点返回：{', '.join(live) or '（不可用或为模拟）'}")
 
 
+def cmd_journals(args, settings):
+    from .journals import JournalRegistry, annotate_items, import_csv, journal_stats, rescore_finals, unknown_journals
+
+    conn = get_conn(settings)
+    sub = args.journals_cmd
+    if sub == "stats":
+        st = journal_stats(conn, settings)
+        _print(f"注册表 {st['registry_size']} 种期刊 · IF 来源：{st['if_source']}")
+        for tier, v in sorted(st["by_tier"].items(), key=lambda kv: JournalRegistry(settings).tier_info(kv[0]).get("rank", 9)):
+            _print(f"  {tier:<12} {v['label']:<6} 条目 {v['n']:>4}  入选 {v['selected']:>4}")
+        _print("顶刊条目：")
+        for r in st["top_journals"]:
+            _print(f"  {r['n']:>3}  {r['journal']:<40} {r['journal_tier']:<12} IF {r['journal_if'] or '未收录'}")
+    elif sub == "unknown":
+        for r in unknown_journals(conn, args.limit):
+            _print(f"  {r['n']:>4}  {r['journal']}")
+        _print("把它们加进 config/journals.yaml 或用 CSV 导入后运行 `reprohub journals annotate`")
+    elif sub == "annotate":
+        r = annotate_items(conn, settings, only_missing=args.only_missing)
+        _print(f"回填 {r['items']} 条：精确匹配 {r['matched']}，正则 {r['pattern']}，未收录 {r['unknown']} · 分布 {r['by_tier']}")
+        if not args.no_rescore:
+            rr = rescore_finals(conn, settings)
+            _print(f"重算最终分：{rr['items']} 条，入选变化 {rr['changed_selected']}（新增 {rr['newly_selected']}，移出 {rr['dropped']}）")
+    elif sub == "import":
+        n = import_csv(conn, args.path)
+        _print(f"导入 {n} 条期刊记录（覆盖同 key 的 yaml 值）；接着运行 `reprohub journals annotate`")
+    elif sub == "resolve":
+        r = JournalRegistry(settings, conn).resolve(args.name, args.issn)
+        _print(r)
+
+
+def cmd_rescore(args, settings):
+    from .journals import rescore_finals
+
+    rr = rescore_finals(get_conn(settings), settings)
+    _print(f"重算最终分（不调模型）：{rr['items']} 条，入选变化 {rr['changed_selected']}（新增 {rr['newly_selected']}，移出 {rr['dropped']}）")
+
+
 def cmd_sources(args, settings):
     conn = get_conn(settings)
     repo.sync_sources(conn, settings)
@@ -314,6 +352,16 @@ def build_parser() -> argparse.ArgumentParser:
     c.set_defaults(fn=cmd_llm)
     sub.add_parser("demo-seed", help="写入离线演示样例").set_defaults(fn=cmd_demo_seed)
     sub.add_parser("sources", help="列出来源状态").set_defaults(fn=cmd_sources)
+
+    c = sub.add_parser("journals", help="期刊等级与影响因子：统计 / 未收录 / 回填 / 导入")
+    js = c.add_subparsers(dest="journals_cmd", required=True)
+    js.add_parser("stats", help="各等级条目数与顶刊列表")
+    u = js.add_parser("unknown", help="高频未收录期刊"); u.add_argument("--limit", type=int, default=40)
+    a = js.add_parser("annotate", help="用注册表回填所有条目并重算最终分"); a.add_argument("--only-missing", action="store_true"); a.add_argument("--no-rescore", action="store_true")
+    i = js.add_parser("import", help="导入 CSV（列 name,issn,if,tier,year,aliases,key）"); i.add_argument("path")
+    r = js.add_parser("resolve", help="查某个期刊名如何被识别"); r.add_argument("name"); r.add_argument("--issn")
+    c.set_defaults(fn=cmd_journals)
+    sub.add_parser("rescore", help="只用已存的模型分+偏好+来源等级+期刊等级重算最终分（不调模型）").set_defaults(fn=cmd_rescore)
     sub.add_parser("export-reading", help="导出阅读记录 JSON").set_defaults(fn=cmd_export)
     return p
 

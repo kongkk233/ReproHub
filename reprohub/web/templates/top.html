@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 style="margin-bottom:0">顶刊 <span class="muted small">CNS · 大子刊 · 综合顶刊 · 领域顶刊</span></h2>
+<div class="stats">
+  {% for t in ['cns','cns-sub','general-top','field-top'] %}{% set v = stats.by_tier.get(t) %}
+  <span><a href="/top?tier={{ t }}"><b>{{ v.n if v else 0 }}</b> {{ tier_label(t) }}</a>{% if v %} <span class="muted">入选 {{ v.selected }}</span>{% endif %}</span>
+  {% endfor %}
+</div>
+<details><summary>顶刊来源分布（{{ stats.top_journals|length }} 种）· 影响因子：{{ IF_SOURCE }}</summary>
+<table class="small"><thead><tr><th>期刊</th><th>等级</th><th>IF</th><th>条目</th><th>入选</th></tr></thead><tbody>
+{% for j in stats.top_journals %}<tr><td>{{ j.journal }}</td><td>{{ tier_label(j.journal_tier) }}</td><td>{{ j.journal_if or '—' }}</td><td>{{ j.n }}</td><td>{{ j.sel or 0 }}</td></tr>{% endfor %}
+</tbody></table></details>
+{% include "_filters.html" %}
+{% include "_groups.html" %}
+{% include "_pager.html" %}
+<p class="muted small">RSS：<a href="/feed/top.xml">/feed/top.xml</a> · API：<code>/api/v1/items?tier=top</code>（或 <code>tier=cns,cns-sub</code>）· 期刊等级与 IF 维护：<code>config/journals.yaml</code>、<code>reprohub journals</code>。</p>
+{% endblock %}

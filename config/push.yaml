@@ -71,6 +71,12 @@ rules:
     topics: []          # 留空=全部主题；或填 slug 列表
     channels: [file]
 
+  - key: top-journal-alert
+    event: item
+    min_final_score: 60
+    journal_tiers: [cns, cns-sub, general-top]   # CNS / 大子刊 / 综合顶刊
+    channels: [file]
+
   - key: embryo-omics-alert
     event: item
     min_final_score: 60

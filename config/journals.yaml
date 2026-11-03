@@ -1,0 +1,173 @@
+# 期刊注册表：等级（参与评分加权、徽标、筛选）与影响因子（标注用）。
+#
+# ⚠ 影响因子为人工整理的近似 JCR 2023 值，仅作排序与参考，不保证精确；请以最新 JCR 为准。
+#   修改此文件，或用 `reprohub journals import <csv>`（列：name,issn,if,tier,year）导入覆盖。
+# 匹配顺序：ISSN → 别名精确匹配（大小写/标点不敏感；PubMed ISO 缩写、全名都写在 aliases）→ patterns 正则。
+# 未命中的期刊：tier=unknown，不加分也不减分，IF 显示「未收录」；`reprohub journals unknown` 可列出高频未收录期刊。
+
+meta:
+  if_source: "近似 JCR 2023（人工整理，可能有偏差；可在 config/journals.yaml 修改或 CSV 导入）"
+  if_year: 2023
+
+tiers:
+  cns:         { label: CNS,     boost: 12, rank: 0 }
+  cns-sub:     { label: 大子刊,   boost: 8,  rank: 1 }
+  general-top: { label: 综合顶刊, boost: 6,  rank: 2 }
+  field-top:   { label: 领域顶刊, boost: 4,  rank: 3 }
+  standard:    { label: "",      boost: 0,  rank: 4 }
+  low-signal:  { label: "",      boost: -3, rank: 5 }   # 高发文量 OA 刊：不是不收，只是不因发表本身加分
+  unknown:     { label: "",      boost: 0,  rank: 6 }
+
+# 顶刊页 /top 与 feed/top.xml 收录的等级
+top_tiers: [cns, cns-sub, general-top, field-top]
+
+journals:
+  # ---------------------------------------------------------------- CNS
+  - { key: nature,  name: Nature,  aliases: [Nature],  issn: ["0028-0836", "1476-4687"], tier: cns, if: 50.5 }
+  - { key: science, name: Science, aliases: [Science, "Science (New York, N.Y.)"], issn: ["0036-8075", "1095-9203"], tier: cns, if: 44.7 }
+  - { key: cell,    name: Cell,    aliases: [Cell],    issn: ["0092-8674", "1097-4172"], tier: cns, if: 45.5 }
+
+  # ---------------------------------------------------------------- Nature 子刊
+  - { key: nat-med,       name: Nature Medicine,          aliases: [Nat Med],             issn: ["1078-8956", "1546-170X"], tier: cns-sub, if: 58.7 }
+  - { key: nat-genet,     name: Nature Genetics,          aliases: [Nat Genet],           issn: ["1061-4036", "1546-1718"], tier: cns-sub, if: 31.7 }
+  - { key: nat-cell-biol, name: Nature Cell Biology,      aliases: [Nat Cell Biol],       issn: ["1465-7392", "1476-4679"], tier: cns-sub, if: 17.3 }
+  - { key: nat-commun,    name: Nature Communications,    aliases: [Nat Commun],          issn: ["2041-1723"],              tier: cns-sub, if: 14.7 }
+  - { key: nat-biotech,   name: Nature Biotechnology,     aliases: [Nat Biotechnol],      issn: ["1087-0156", "1546-1696"], tier: cns-sub, if: 33.1 }
+  - { key: nat-methods,   name: Nature Methods,           aliases: [Nat Methods],         issn: ["1548-7091", "1548-7105"], tier: cns-sub, if: 36.1 }
+  - { key: nat-aging,     name: Nature Aging,             aliases: [Nat Aging],           issn: ["2662-8465"],              tier: cns-sub, if: 17.0 }
+  - { key: nat-metab,     name: Nature Metabolism,        aliases: [Nat Metab],           issn: ["2522-5812"],              tier: cns-sub, if: 18.9 }
+  - { key: nat-immunol,   name: Nature Immunology,        aliases: [Nat Immunol],         issn: ["1529-2908", "1529-2916"], tier: cns-sub, if: 27.7 }
+  - { key: nsmb,          name: Nature Structural & Molecular Biology, aliases: [Nat Struct Mol Biol], issn: ["1545-9993", "1545-9985"], tier: cns-sub, if: 12.5 }
+  - { key: nat-protoc,    name: Nature Protocols,         aliases: [Nat Protoc],          issn: ["1754-2189", "1750-2799"], tier: cns-sub, if: 13.1 }
+  - { key: nat-hum-behav, name: Nature Human Behaviour,   aliases: [Nat Hum Behav],       issn: ["2397-3374"],              tier: cns-sub, if: 21.4 }
+  - { key: nrmcb,         name: Nature Reviews Molecular Cell Biology, aliases: [Nat Rev Mol Cell Biol], issn: ["1471-0072", "1471-0080"], tier: cns-sub, if: 81.3 }
+  - { key: nrg,           name: Nature Reviews Genetics,  aliases: [Nat Rev Genet],       issn: ["1471-0056", "1471-0064"], tier: cns-sub, if: 39.1 }
+  - { key: nrendo,        name: Nature Reviews Endocrinology, aliases: [Nat Rev Endocrinol], issn: ["1759-5029", "1759-5037"], tier: cns-sub, if: 31.0 }
+  - { key: nat-rev-urol,  name: Nature Reviews Urology,   aliases: [Nat Rev Urol],        issn: ["1759-4812", "1759-4820"], tier: cns-sub, if: 12.7 }
+
+  # ---------------------------------------------------------------- Cell 子刊
+  - { key: cell-stem-cell, name: Cell Stem Cell,       aliases: [Cell Stem Cell],  issn: ["1934-5909", "1875-9777"], tier: cns-sub, if: 19.8 }
+  - { key: dev-cell,       name: Developmental Cell,   aliases: [Dev Cell],        issn: ["1534-5807", "1878-1551"], tier: cns-sub, if: 10.7 }
+  - { key: mol-cell,       name: Molecular Cell,       aliases: [Mol Cell],        issn: ["1097-2765", "1097-4164"], tier: cns-sub, if: 14.5 }
+  - { key: cell-res,       name: Cell Research,        aliases: [Cell Res],        issn: ["1001-0602", "1748-7838"], tier: cns-sub, if: 28.1 }
+  - { key: cell-metab,     name: Cell Metabolism,      aliases: [Cell Metab],      issn: ["1550-4131", "1932-7420"], tier: cns-sub, if: 27.7 }
+  - { key: cell-rep,       name: Cell Reports,         aliases: [Cell Rep],        issn: ["2211-1247"],              tier: cns-sub, if: 7.5 }
+  - { key: cell-genom,     name: Cell Genomics,        aliases: [Cell Genom],      issn: ["2666-979X"],              tier: cns-sub, if: 11.1 }
+  - { key: cell-rep-med,   name: Cell Reports Medicine, aliases: [Cell Rep Med],   issn: ["2666-3791"],              tier: cns-sub, if: 11.7 }
+  - { key: cell-discov,    name: Cell Discovery,       aliases: [Cell Discov],     issn: ["2056-5968"],              tier: cns-sub, if: 13.0 }
+  - { key: cell-syst,      name: Cell Systems,         aliases: [Cell Syst],       issn: ["2405-4712", "2405-4720"], tier: cns-sub, if: 9.0 }
+  - { key: immunity,       name: Immunity,             aliases: [Immunity],        issn: ["1074-7613", "1097-4180"], tier: cns-sub, if: 25.5 }
+  - { key: cell-prolif,    name: Cell Proliferation,   aliases: [Cell Prolif],     issn: ["0960-7722", "1365-2184"], tier: field-top, if: 5.9 }
+
+  # ---------------------------------------------------------------- Science 子刊
+  - { key: sci-adv,        name: Science Advances,               aliases: [Sci Adv],        issn: ["2375-2548"], tier: cns-sub, if: 11.7 }
+  - { key: sci-transl-med, name: Science Translational Medicine, aliases: [Sci Transl Med], issn: ["1946-6234", "1946-6242"], tier: cns-sub, if: 15.8 }
+  - { key: sci-immunol,    name: Science Immunology,             aliases: [Sci Immunol],    issn: ["2470-9468"], tier: cns-sub, if: 17.6 }
+
+  # ---------------------------------------------------------------- 综合顶刊 / 医学四大刊
+  - { key: nejm,   name: New England Journal of Medicine, aliases: [N Engl J Med, NEJM],  issn: ["0028-4793", "1533-4406"], tier: general-top, if: 96.2 }
+  - { key: lancet, name: The Lancet,                      aliases: [Lancet, "Lancet (London, England)"], issn: ["0140-6736", "1474-547X"], tier: general-top, if: 98.4 }
+  - { key: jama,   name: JAMA,                            aliases: [JAMA],                issn: ["0098-7484", "1538-3598"], tier: general-top, if: 63.1 }
+  - { key: bmj,    name: BMJ,                             aliases: [BMJ, "BMJ (Clinical research ed.)"], issn: ["0959-8138", "1756-1833"], tier: general-top, if: 93.6 }
+  - { key: lancet-de, name: The Lancet Diabetes & Endocrinology, aliases: [Lancet Diabetes Endocrinol], issn: ["2213-8587", "2213-8595"], tier: general-top, if: 44.0 }
+  - { key: lancet-gh, name: The Lancet Global Health,     aliases: [Lancet Glob Health],  issn: ["2214-109X"],              tier: general-top, if: 19.9 }
+  - { key: jama-netw, name: JAMA Network Open,            aliases: [JAMA Netw Open],      issn: ["2574-3805"],              tier: general-top, if: 10.5 }
+  - { key: plos-med, name: PLOS Medicine,                 aliases: [PLoS Med],            issn: ["1549-1277", "1549-1676"], tier: general-top, if: 10.5 }
+  - { key: pnas,   name: Proceedings of the National Academy of Sciences, aliases: [Proc Natl Acad Sci U S A, PNAS, "Proceedings of the National Academy of Sciences of the United States of America"], issn: ["0027-8424", "1091-6490"], tier: general-top, if: 9.4 }
+  - { key: elife,  name: eLife,                           aliases: [Elife, eLife],        issn: ["2050-084X"],              tier: general-top, if: 6.4 }
+  - { key: embo-j, name: The EMBO Journal,                aliases: [EMBO J],              issn: ["0261-4189", "1460-2075"], tier: general-top, if: 9.4 }
+  - { key: genome-biol, name: Genome Biology,             aliases: [Genome Biol],         issn: ["1474-760X"],              tier: general-top, if: 10.1 }
+  - { key: genome-med,  name: Genome Medicine,            aliases: [Genome Med],          issn: ["1756-994X"],              tier: general-top, if: 10.4 }
+  - { key: nar,    name: Nucleic Acids Research,          aliases: [Nucleic Acids Res],   issn: ["0305-1048", "1362-4962"], tier: general-top, if: 16.6 }
+  - { key: genome-res, name: Genome Research,             aliases: [Genome Res],          issn: ["1088-9051", "1549-5469"], tier: general-top, if: 6.2 }
+  - { key: adv-sci, name: Advanced Science,               aliases: ["Adv Sci (Weinh)", Advanced Science], issn: ["2198-3844"], tier: general-top, if: 14.3 }
+  - { key: sttt,   name: Signal Transduction and Targeted Therapy, aliases: [Signal Transduct Target Ther], issn: ["2059-3635"], tier: general-top, if: 40.8 }
+  - { key: protein-cell, name: Protein & Cell,            aliases: [Protein Cell],        issn: ["1674-800X", "1674-8018"], tier: general-top, if: 13.6 }
+  - { key: sci-china-ls, name: Science China Life Sciences, aliases: [Sci China Life Sci], issn: ["1674-7305", "1869-1889"], tier: general-top, if: 8.0 }
+  - { key: ebiomedicine, name: eBioMedicine,              aliases: [EBioMedicine],        issn: ["2352-3964"],              tier: general-top, if: 9.7 }
+  - { key: research, name: Research,                      aliases: ["Research (Wash D C)"], issn: ["2639-5274"],            tier: general-top, if: 11.0 }
+  - { key: aging-cell, name: Aging Cell,                  aliases: [Aging Cell],          issn: ["1474-9718", "1474-9726"], tier: field-top, if: 8.0 }
+  - { key: endocr-rev, name: Endocrine Reviews,           aliases: [Endocr Rev],          issn: ["0163-769X", "1945-7189"], tier: general-top, if: 22.0 }
+  - { key: trends-endo, name: Trends in Endocrinology & Metabolism, aliases: [Trends Endocrinol Metab], issn: ["1043-2760", "1879-3061"], tier: field-top, if: 10.9 }
+  - { key: eur-urol, name: European Urology,              aliases: [Eur Urol],            issn: ["0302-2838", "1873-7560"], tier: general-top, if: 25.3 }
+  - { key: env-sci-tech, name: Environmental Science & Technology, aliases: [Environ Sci Technol], issn: ["0013-936X", "1520-5851"], tier: field-top, if: 10.8 }
+  - { key: env-int, name: Environment International,      aliases: [Environ Int],         issn: ["0160-4120", "1873-6750"], tier: field-top, if: 10.3 }
+
+  # ---------------------------------------------------------------- 生殖医学领域顶刊
+  - { key: hru,     name: Human Reproduction Update,      aliases: [Hum Reprod Update],   issn: ["1355-4786", "1460-2369"], tier: field-top, if: 14.8 }
+  - { key: humrep,  name: Human Reproduction,             aliases: [Hum Reprod, "Human reproduction (Oxford, England)"], issn: ["0268-1161", "1460-2350"], tier: field-top, if: 6.0 }
+  - { key: fns,     name: Fertility and Sterility,        aliases: [Fertil Steril],       issn: ["0015-0282", "1556-5653"], tier: field-top, if: 6.6 }
+  - { key: hropen,  name: Human Reproduction Open,        aliases: [Hum Reprod Open],     issn: ["2399-3529"],              tier: field-top, if: 8.3 }
+  - { key: ajog,    name: American Journal of Obstetrics and Gynecology, aliases: [Am J Obstet Gynecol], issn: ["0002-9378", "1097-6868"], tier: field-top, if: 8.7 }
+  - { key: obgyn,   name: Obstetrics & Gynecology,        aliases: [Obstet Gynecol],      issn: ["0029-7844", "1873-233X"], tier: field-top, if: 5.7 }
+  - { key: uog,     name: Ultrasound in Obstetrics & Gynecology, aliases: [Ultrasound Obstet Gynecol], issn: ["0960-7692", "1469-0705"], tier: field-top, if: 6.1 }
+  - { key: bjog,    name: BJOG,                           aliases: [BJOG, "BJOG : an international journal of obstetrics and gynaecology"], issn: ["1470-0328", "1471-0528"], tier: field-top, if: 4.7 }
+  - { key: jcem,    name: Journal of Clinical Endocrinology & Metabolism, aliases: [J Clin Endocrinol Metab], issn: ["0021-972X", "1945-7197"], tier: field-top, if: 5.0 }
+  - { key: rbmo,    name: Reproductive BioMedicine Online, aliases: [Reprod Biomed Online, Reproductive BioMedicine Online], issn: ["1472-6483", "1472-6491"], tier: standard, if: 3.7 }
+  - { key: biolreprod, name: Biology of Reproduction,     aliases: [Biol Reprod],         issn: ["0006-3363", "1529-7268"], tier: standard, if: 3.1 }
+  - { key: mhr,     name: Molecular Human Reproduction,   aliases: [Mol Hum Reprod],      issn: ["1360-9947", "1460-2407"], tier: standard, if: 3.6 }
+  - { key: jarg,    name: Journal of Assisted Reproduction and Genetics, aliases: [J Assist Reprod Genet], issn: ["1058-0468", "1573-7330"], tier: standard, if: 3.0 }
+  - { key: reproduction, name: Reproduction,              aliases: [Reproduction, "Reproduction (Cambridge, England)"], issn: ["1470-1626", "1741-7899"], tier: standard, if: 3.7 }
+  - { key: andrology, name: Andrology,                    aliases: [Andrology],           issn: ["2047-2919", "2047-2927"], tier: standard, if: 3.9 }
+  - { key: rbe,     name: Reproductive Biology and Endocrinology, aliases: [Reprod Biol Endocrinol, Reproductive Biology and Endocrinology], issn: ["1477-7827"], tier: standard, if: 4.2 }
+  - { key: reprod-sci, name: Reproductive Sciences,       aliases: [Reprod Sci],          issn: ["1933-7191", "1933-7205"], tier: standard, if: 2.6 }
+  - { key: development, name: Development,                aliases: [Development, "Development (Cambridge, England)"], issn: ["0950-1991", "1477-9129"], tier: field-top, if: 3.7 }
+  - { key: dev-biol, name: Developmental Biology,         aliases: [Dev Biol],            issn: ["0012-1606", "1095-564X"], tier: standard, if: 2.5 }
+  - { key: stem-cell-rep, name: Stem Cell Reports,        aliases: [Stem Cell Reports],   issn: ["2213-6711"],              tier: standard, if: 5.9 }
+  - { key: theriogenology, name: Theriogenology,          aliases: [Theriogenology],      issn: ["0093-691X", "1879-3231"], tier: standard, if: 2.8 }
+  - { key: j-ovarian-res, name: Journal of Ovarian Research, aliases: [J Ovarian Res],    issn: ["1757-2215"],              tier: standard, if: 3.8 }
+  - { key: bmc-preg, name: BMC Pregnancy and Childbirth,  aliases: [BMC Pregnancy Childbirth], issn: ["1471-2393"],         tier: standard, if: 2.8 }
+  - { key: bmc-womens, name: BMC Women's Health,          aliases: [BMC Womens Health],   issn: ["1472-6874"],              tier: standard, if: 2.4 }
+  - { key: faseb-j, name: The FASEB Journal,              aliases: [FASEB J],             issn: ["0892-6638", "1530-6860"], tier: standard, if: 4.4 }
+  - { key: sci-rep, name: Scientific Reports,             aliases: [Sci Rep],             issn: ["2045-2322"],              tier: standard, if: 3.8 }
+  - { key: plos-one, name: PLOS ONE,                      aliases: [PLoS One],            issn: ["1932-6203"],              tier: standard, if: 2.9 }
+  - { key: front-cdb, name: Frontiers in Cell and Developmental Biology, aliases: [Front Cell Dev Biol], issn: ["2296-634X"], tier: standard, if: 4.6 }
+  - { key: front-endo, name: Frontiers in Endocrinology,  aliases: ["Front Endocrinol (Lausanne)"], issn: ["1664-2392"],    tier: standard, if: 3.9 }
+  - { key: front-immunol, name: Frontiers in Immunology,  aliases: [Front Immunol],       issn: ["1664-3224"],              tier: standard, if: 5.7 }
+  - { key: front-med, name: Frontiers in Medicine,        aliases: ["Front Med (Lausanne)"], issn: ["2296-858X"],           tier: standard, if: 3.1 }
+  - { key: front-genet, name: Frontiers in Genetics,      aliases: [Front Genet],         issn: ["1664-8021"],              tier: standard, if: 2.8 }
+  - { key: j-reprod-dev, name: Journal of Reproduction and Development, aliases: [J Reprod Dev], issn: ["0916-8818", "1348-4400"], tier: standard, if: 1.4 }
+  - { key: reprod-biol, name: Reproductive Biology,       aliases: [Reprod Biol],         issn: ["1642-431X"],              tier: standard, if: 2.0 }
+  - { key: gyn-endo, name: Gynecological Endocrinology,   aliases: [Gynecol Endocrinol],  issn: ["0951-3590", "1473-0766"], tier: standard, if: 1.7 }
+  - { key: jbra,    name: JBRA Assisted Reproduction,     aliases: [JBRA Assist Reprod],  issn: ["1517-5693", "1518-0557"], tier: standard, if: 1.5 }
+  - { key: ijfs,    name: International Journal of Fertility & Sterility, aliases: [Int J Fertil Steril], issn: ["2008-076X", "2008-0778"], tier: standard, if: 1.7 }
+
+  # ---------------------------------------------------------------- 高发文量 OA 刊（不因期刊本身加分；证据强度逐篇看）
+  - { key: ijms,   name: International Journal of Molecular Sciences, aliases: [Int J Mol Sci], issn: ["1422-0067", "1661-6596"], tier: low-signal, if: 4.9 }
+  - { key: cells,  name: Cells,              aliases: [Cells],                issn: ["2073-4409"], tier: low-signal, if: 5.1 }
+  - { key: antioxidants, name: Antioxidants, aliases: ["Antioxidants (Basel)"], issn: ["2076-3921"], tier: low-signal, if: 6.0 }
+  - { key: biomedicines, name: Biomedicines, aliases: [Biomedicines],         issn: ["2227-9059"], tier: low-signal, if: 3.9 }
+  - { key: genes,  name: Genes,              aliases: ["Genes (Basel)"],       issn: ["2073-4425"], tier: low-signal, if: 2.8 }
+  - { key: life,   name: Life,               aliases: ["Life (Basel)"],        issn: ["2075-1729"], tier: low-signal, if: 3.2 }
+  - { key: medicina, name: Medicina,         aliases: ["Medicina (Kaunas)"],   issn: ["1010-660X", "1648-9144"], tier: low-signal, if: 2.4 }
+  - { key: jcm,    name: Journal of Clinical Medicine, aliases: [J Clin Med],  issn: ["2077-0383"], tier: low-signal, if: 3.0 }
+  - { key: toxics, name: Toxics,             aliases: [Toxics],               issn: ["2305-6304"], tier: low-signal, if: 3.9 }
+  - { key: metabolites, name: Metabolites,   aliases: [Metabolites],          issn: ["2218-1989"], tier: low-signal, if: 3.4 }
+  - { key: biology, name: Biology,           aliases: ["Biology (Basel)"],     issn: ["2079-7737"], tier: low-signal, if: 3.6 }
+  - { key: cimb,   name: Current Issues in Molecular Biology, aliases: [Curr Issues Mol Biol], issn: ["1467-3037", "1467-3045"], tier: low-signal, if: 2.8 }
+  - { key: nutrients, name: Nutrients,       aliases: [Nutrients],            issn: ["2072-6643"], tier: low-signal, if: 4.8 }
+  - { key: animals, name: Animals,           aliases: ["Animals (Basel)"],     issn: ["2076-2615"], tier: low-signal, if: 2.7 }
+  - { key: vet-sci, name: Veterinary Sciences, aliases: [Vet Sci],            issn: ["2306-7381"], tier: low-signal, if: 2.0 }
+  - { key: diagnostics, name: Diagnostics,   aliases: ["Diagnostics (Basel)"], issn: ["2075-4418"], tier: low-signal, if: 3.0 }
+  - { key: healthcare, name: Healthcare,     aliases: ["Healthcare (Basel)"],  issn: ["2227-9032"], tier: low-signal, if: 2.4 }
+  - { key: jpm,    name: Journal of Personalized Medicine, aliases: [J Pers Med], issn: ["2075-4426"], tier: low-signal, if: 3.0 }
+  - { key: ijerph, name: International Journal of Environmental Research and Public Health, aliases: [Int J Environ Res Public Health], issn: ["1660-4601", "1661-7827"], tier: low-signal }
+  - { key: cureus, name: Cureus,             aliases: [Cureus],               issn: ["2168-8184"], tier: low-signal }
+  - { key: heliyon, name: Heliyon,           aliases: [Heliyon],              issn: ["2405-8440"], tier: low-signal, if: 3.4 }
+  - { key: medicine-balt, name: Medicine,    aliases: ["Medicine (Baltimore)"], issn: ["0025-7974", "1536-5964"], tier: low-signal, if: 1.3 }
+  - { key: jove,   name: Journal of Visualized Experiments, aliases: [J Vis Exp, JoVE], issn: ["1940-087X"], tier: low-signal, if: 1.2 }
+
+  # ---------------------------------------------------------------- 预印本（不是期刊，无 IF）
+  - { key: biorxiv, name: bioRxiv,  aliases: [bioRxiv, biorxiv], tier: standard }
+  - { key: medrxiv, name: medRxiv,  aliases: [medRxiv, medrxiv], tier: standard }
+  - { key: research-square, name: Research Square, aliases: [Research Square], tier: standard }
+  - { key: preprints-org, name: Preprints.org, aliases: [Preprints.org], tier: standard }
+
+# 别名未命中时的正则（按顺序），只给等级不给 IF
+patterns:
+  - { match: "^(Nature|Nat) [A-Z]", tier: cns-sub }
+  - { match: "^Lancet( |$)", tier: general-top }
+  - { match: "^Cell [A-Z]", tier: cns-sub }
+  - { match: "^(JAMA) [A-Z]", tier: general-top }
+  - { match: "^Sci(ence)? (Adv|Transl|Immunol|Signal)", tier: cns-sub }
+  - { match: "^(Front|Frontiers) ", tier: standard }

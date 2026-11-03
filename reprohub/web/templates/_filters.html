@@ -17,6 +17,8 @@
   {{ link('kind', '', '所有类型') }}{{ link('kind', 'paper', '文献') }}{{ link('kind', 'preprint', '预印本') }}{{ link('kind', 'news', '资讯') }}{% endif %}
   <span class="muted">·</span>
   {{ link('days', '', '不限') }}{{ link('days', '7', '7天') }}{{ link('days', '30', '30天') }}
+  <span class="muted">·</span>
+  {{ link('tier', '', '所有期刊') }}{{ link('tier', 'cns', 'CNS') }}{{ link('tier', 'sub', 'CNS+子刊') }}{{ link('tier', 'top', '顶刊') }}{{ link('order', 'if', '按IF') }}
   <form method="get" action="{{ path }}">
     {% for k, v in q.items() if k not in ('topic', 'page', 'q') and v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
     {% if not filters.get('topic') or path == '/' or path == '/all' or path == '/papers' or path == '/news' %}

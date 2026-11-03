@@ -4,6 +4,8 @@
     <span>{{ fmt_dt(it.published_at or it.fetched_at, "%H:%M") }}</span>
     · <a href="/sources/{{ it.source_key }}">{{ it.source_name }}</a>
     {% if it.journal and it.journal != it.source_name %}· <span>{{ truncate(it.journal, 40) }}</span>{% endif %}
+    {% if it.journal_tier in TOP_TIERS %}<span class="badge tier {{ it.journal_tier }}">{{ tier_label(it.journal_tier) }}</span>{% endif %}
+    {% if it.journal_if %}<span class="badge if" title="影响因子（{{ IF_SOURCE }}）">IF {{ it.journal_if }}</span>{% endif %}
     · <span class="badge kind">{{ KIND_LABEL.get(it.kind, it.kind) }}</span>
     {% if it.final_score is not none %}
       <span class="badge score {% if it.final_score < 60 %}low{% endif %}" title="模型分 {{ it.llm_score }} + 偏好/等级修正">{{ it.final_score|round|int }}</span>

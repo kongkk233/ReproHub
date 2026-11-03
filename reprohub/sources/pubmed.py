@@ -90,6 +90,7 @@ class PubMedFetcher(BaseFetcher):
                 abs_parts.append(f"{label}: {txt}" if label else txt)
             summary = " ".join(abs_parts).strip()
             journal = art.findtext("Journal/ISOAbbreviation") or art.findtext("Journal/Title")
+            issn = art.findtext("Journal/ISSN") or None
             doi = None
             for el in art.findall("ELocationID"):
                 if el.get("EIdType") == "doi":
@@ -123,7 +124,7 @@ class PubMedFetcher(BaseFetcher):
                     journal=journal,
                     published_at=_pubdate(art),
                     kind=kind,
-                    extra={"pub_types": pub_types},
+                    extra={"pub_types": pub_types, "issn": issn},
                 )
             )
         return out

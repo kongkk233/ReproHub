@@ -65,6 +65,9 @@ def _item_matches(rule: dict, it: dict) -> bool:
     kinds = rule.get("kinds") or []
     if kinds and it.get("kind") not in kinds:
         return False
+    tiers = rule.get("journal_tiers") or []
+    if tiers and it.get("journal_tier") not in tiers:
+        return False
     return True
 
 

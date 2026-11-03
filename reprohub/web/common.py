@@ -13,6 +13,7 @@ from markupsafe import Markup
 
 from .. import __version__
 from ..db import get_conn
+from ..journals import JournalRegistry
 from ..llm import llm_status
 from ..settings import Settings, get_settings
 from ..textutil import parse_iso, truncate
@@ -104,6 +105,9 @@ def build_templates(settings: Settings) -> Jinja2Templates:
         rel_date=lambda iso: rel_date(iso, settings.tz),
         topic_name=lambda slug: settings.topic_map.get(slug or "", {}).get("name", slug or "未分类"),
         llm_status=lambda: llm_status(settings, get_conn(settings)),
+        tier_label=lambda t: JournalRegistry(settings).tier_info(t).get("label", ""),
+        TOP_TIERS=JournalRegistry(settings).top_tiers,
+        IF_SOURCE=(settings.journals.get("meta") or {}).get("if_source", ""),
     )
     return t
 

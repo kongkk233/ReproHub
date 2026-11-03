@@ -34,11 +34,16 @@ def migrate(conn: sqlite3.Connection) -> None:
         "ALTER TABLE llm_calls ADD COLUMN effort TEXT",
         "ALTER TABLE llm_calls ADD COLUMN reasoning_tokens INTEGER",
         "ALTER TABLE llm_calls ADD COLUMN cached INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE items ADD COLUMN journal_key TEXT",
+        "ALTER TABLE items ADD COLUMN journal_tier TEXT",
+        "ALTER TABLE items ADD COLUMN journal_if REAL",
     ):
         try:
             conn.execute(stmt)
         except sqlite3.OperationalError:
             pass
+    # 依赖新增列的索引放在迁移之后
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_items_journal_tier ON items(journal_tier)")
 
 
 def get_conn(settings: Settings | None = None) -> sqlite3.Connection:

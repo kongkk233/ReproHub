@@ -113,6 +113,35 @@ sources:
          OR "Andrology"[ta] OR "Hum Reprod Open"[ta] OR "Reprod Sci"[ta] OR "Reprod Biol Endocrinol"[ta]
          OR "F S Rep"[ta] OR "F S Sci"[ta] OR "Front Endocrinol (Lausanne)"[ta] AND reproduct*[tiab])
 
+  - key: pubmed-top-journals
+    name: PubMed · CNS/大子刊/四大医学刊（生殖相关）
+    type: pubmed
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 240
+    in_scope_default: false
+    scope_filter: true
+    params:
+      reldate_days: 30
+      retmax: 200
+      query: >
+        ("Nature"[ta] OR "Science"[ta] OR "Cell"[ta] OR "Nat Med"[ta] OR "Nat Genet"[ta] OR "Nat Cell Biol"[ta]
+         OR "Nat Commun"[ta] OR "Nat Biotechnol"[ta] OR "Nat Methods"[ta] OR "Nat Aging"[ta] OR "Nat Metab"[ta]
+         OR "Nat Struct Mol Biol"[ta] OR "Nat Immunol"[ta] OR "Nat Rev Mol Cell Biol"[ta] OR "Nat Rev Genet"[ta]
+         OR "Nat Rev Endocrinol"[ta] OR "Cell Stem Cell"[ta] OR "Dev Cell"[ta] OR "Mol Cell"[ta] OR "Cell Res"[ta]
+         OR "Cell Rep"[ta] OR "Cell Metab"[ta] OR "Cell Genom"[ta] OR "Cell Rep Med"[ta] OR "Cell Discov"[ta]
+         OR "Sci Adv"[ta] OR "Sci Transl Med"[ta] OR "N Engl J Med"[ta] OR "Lancet"[ta] OR "JAMA"[ta] OR "BMJ"[ta]
+         OR "Lancet Diabetes Endocrinol"[ta] OR "Proc Natl Acad Sci U S A"[ta] OR "Elife"[ta] OR "EMBO J"[ta]
+         OR "Genome Biol"[ta] OR "Nucleic Acids Res"[ta] OR "Signal Transduct Target Ther"[ta] OR "Adv Sci (Weinh)"[ta]
+         OR "Protein Cell"[ta] OR "Sci China Life Sci"[ta] OR "Hum Reprod Update"[ta] OR "Endocr Rev"[ta])
+        AND (embryo*[tiab] OR oocyte*[tiab] OR blastocyst*[tiab] OR sperm*[tiab] OR testis[tiab] OR testicular[tiab]
+         OR ovar*[tiab] OR follic*[tiab] OR fertili*[tiab] OR infertil*[tiab] OR IVF[tiab] OR "assisted reproduct*"[tiab]
+         OR endometri*[tiab] OR implantation[tiab] OR placenta*[tiab] OR trophoblast*[tiab] OR "germ cell*"[tiab]
+         OR "germline"[tiab] OR gametogenesis[tiab] OR meio*[tiab] OR "zygotic genome"[tiab] OR gastrulat*[tiab]
+         OR pregnan*[tiab] OR miscarriage[tiab] OR PCOS[tiab] OR "polycystic ovar*"[tiab] OR menopaus*[tiab]
+         OR contracept*[tiab] OR "reproductive"[tiab] OR "preimplantation"[tiab] OR blastoid*[tiab] OR "embryo model*"[tiab])
+
   # --------------------------------------------------------------- Europe PMC
   - key: europepmc-preprints
     name: Europe PMC · 预印本（领域内）
@@ -185,6 +214,42 @@ sources:
         - { issn: "2399-3529", name: Human Reproduction Open }
         - { issn: "2047-2919", name: Andrology }
         - { issn: "1477-7827", name: Reproductive Biology and Endocrinology }
+
+  - key: crossref-cns
+    name: Crossref · CNS 与大子刊新上线（领域过滤）
+    type: crossref
+    tier: 1
+    kind: paper
+    enabled: true
+    interval_minutes: 360
+    in_scope_default: false
+    scope_filter: true     # Crossref 常无摘要，靠标题关键词过领域门槛
+    params:
+      days: 7
+      rows: 200
+      journals:
+        - { issn: "0028-0836", name: Nature }
+        - { issn: "0036-8075", name: Science }
+        - { issn: "0092-8674", name: Cell }
+        - { issn: "1078-8956", name: Nature Medicine }
+        - { issn: "1061-4036", name: Nature Genetics }
+        - { issn: "1465-7392", name: Nature Cell Biology }
+        - { issn: "2041-1723", name: Nature Communications }
+        - { issn: "2662-8465", name: Nature Aging }
+        - { issn: "2522-5812", name: Nature Metabolism }
+        - { issn: "1934-5909", name: Cell Stem Cell }
+        - { issn: "1534-5807", name: Developmental Cell }
+        - { issn: "1097-2765", name: Molecular Cell }
+        - { issn: "1001-0602", name: Cell Research }
+        - { issn: "2211-1247", name: Cell Reports }
+        - { issn: "2375-2548", name: Science Advances }
+        - { issn: "0027-8424", name: PNAS }
+        - { issn: "2050-084X", name: eLife }
+        - { issn: "1474-760X", name: Genome Biology }
+        - { issn: "0028-4793", name: NEJM }
+        - { issn: "0140-6736", name: The Lancet }
+        - { issn: "0098-7484", name: JAMA }
+        - { issn: "1355-4786", name: Human Reproduction Update }
 
   # -------------------------------------------------------------------- RSS
   - key: rss-fertstert

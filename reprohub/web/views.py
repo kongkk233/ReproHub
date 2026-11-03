@@ -56,6 +56,10 @@ def _list_filters(request: Request) -> dict:
         "order": q.get("order") or "date",
         "page": qp_int(request, "page", 1),
     }
+    tier = q.get("tier") or ""
+    if tier:
+        groups = {"cns": ["cns"], "sub": ["cns", "cns-sub"], "top": ["cns", "cns-sub", "general-top", "field-top"], "field": ["field-top"]}
+        f["journal_tiers"] = groups.get(tier, [tier])
     if q.get("min_score", "").replace(".", "", 1).isdigit():
         f["min_score"] = float(q["min_score"])
     if q.get("days", "").isdigit():
@@ -108,6 +112,24 @@ def papers(request: Request):
 @router.get("/news", response_class=HTMLResponse)
 def news(request: Request):
     return _list_page(request, title="资讯与动态", status="scored", kinds=["news", "post", "other"])
+
+
+@router.get("/top", response_class=HTMLResponse)
+def top_journals(request: Request):
+    """顶刊：CNS / 大子刊 / 综合顶刊 / 领域顶刊 的条目。"""
+    from ..journals import journal_stats
+
+    settings = _s(request)
+    conn = get_conn(settings)
+    f = _list_filters(request)
+    if "journal_tiers" not in f:
+        f["journal_tiers"] = list(request.app.state.templates.env.globals["TOP_TIERS"])
+    f.setdefault("status", "scored")
+    page_size = int(settings.site_info.get("page_size", 30))
+    items, total = repo.list_items(conn, page_size=page_size, **f)
+    groups = repo.date_groups(conn, items, settings.tz)
+    pages = max(1, (total + page_size - 1) // page_size)
+    return _render(request, "top.html", title="顶刊", items=items, groups=groups, total=total, page=f["page"], pages=pages, filters=f, stats=journal_stats(conn, settings))
 
 
 @router.get("/search", response_class=HTMLResponse)

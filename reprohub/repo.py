@@ -113,8 +113,8 @@ def insert_item(conn: sqlite3.Connection, source_id: int, d: dict) -> int:
     cur = conn.execute(
         """INSERT INTO items(source_id, external_id, url, url_hash, doi, pmid, title, title_fp, summary, authors, journal,
                              kind, lang, published_at, fetched_at, topics, primary_topic, topic_score, in_scope,
-                             preference_score, preference_labels, status, reject_reason, extra)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                             preference_score, preference_labels, status, reject_reason, extra, journal_key, journal_tier, journal_if)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             source_id, d.get("external_id"), d["url"], d["url_hash"], d.get("doi"), d.get("pmid"), d["title"],
             d.get("title_fp") or title_fingerprint(d["title"]), d.get("summary") or "", json.dumps(d.get("authors") or [], ensure_ascii=False),
@@ -123,6 +123,7 @@ def insert_item(conn: sqlite3.Connection, source_id: int, d: dict) -> int:
             1 if d.get("in_scope") else 0, float(d.get("preference_score") or 0),
             json.dumps(d.get("preference_labels") or [], ensure_ascii=False), d.get("status") or "new", d.get("reject_reason"),
             json.dumps(d.get("extra") or {}, ensure_ascii=False),
+            d.get("journal_key"), d.get("journal_tier"), d.get("journal_if"),
         ),
     )
     item_id = int(cur.lastrowid)
@@ -198,8 +199,11 @@ def list_items(
     page: int = 1,
     page_size: int = 30,
     story_id: int | None = None,
+    journal_tiers: list[str] | None = None,
 ) -> tuple[list[dict], int]:
     where, args = [], []
+    if journal_tiers:
+        where.append(f"i.journal_tier IN ({','.join('?' * len(journal_tiers))})"); args.extend(journal_tiers)
     if selected is not None:
         where.append("i.selected=?"); args.append(1 if selected else 0)
     if status:
@@ -249,6 +253,7 @@ def list_items(
         "fetched": "i.fetched_at DESC, i.id DESC",
         "preference": "i.preference_score DESC, COALESCE(i.final_score,0) DESC",
         "updated": "r.updated_at DESC",
+        "if": "COALESCE(i.journal_if, 0) DESC, COALESCE(i.final_score,0) DESC",
     }.get(order, "COALESCE(i.published_at, i.fetched_at) DESC, i.id DESC")
     base = ITEM_FROM + join_fts + sql_where
     total = conn.execute("SELECT COUNT(*) " + base, args).fetchone()[0]

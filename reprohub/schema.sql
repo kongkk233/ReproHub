@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS items (
   score_dims TEXT,
   recommend_reason TEXT,
   keywords TEXT NOT NULL DEFAULT '[]',
+  journal_key TEXT,
+  journal_tier TEXT,
+  journal_if REAL,
   selected INTEGER NOT NULL DEFAULT 0,
   selected_at TEXT,
   story_id INTEGER,
@@ -193,6 +196,19 @@ CREATE TABLE IF NOT EXISTS llm_calls (
   ref_type TEXT,
   ref_id INTEGER,
   created_at TEXT NOT NULL
+);
+
+-- 期刊表：CSV 导入的 IF/等级覆盖（yaml 为主表，这里是增量与覆盖）
+CREATE TABLE IF NOT EXISTS journals (
+  key TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  aliases TEXT NOT NULL DEFAULT '',
+  issn TEXT NOT NULL DEFAULT '',
+  tier TEXT NOT NULL DEFAULT '',
+  if_value REAL,
+  if_year TEXT,
+  source TEXT NOT NULL DEFAULT 'import',
+  updated_at TEXT NOT NULL
 );
 
 -- 真实模型输出缓存：同一任务 + 同一提示词不再重复调用（模拟输出永不缓存）

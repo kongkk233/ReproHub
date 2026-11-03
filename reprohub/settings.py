@@ -90,6 +90,10 @@ class Settings:
     def models(self) -> dict:
         return self.load("models.yaml")
 
+    @functools.cached_property
+    def journals(self) -> dict:
+        return self.load("journals.yaml")
+
     def prompt(self, task: str) -> str:
         p = self.config_dir / "prompts" / f"{task}.md"
         return p.read_text(encoding="utf-8")

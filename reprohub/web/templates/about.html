@@ -10,6 +10,7 @@
   <li><b>重点偏好（只加权，不是门槛）</b>：
     <ul>{% for r in preferences %}<li>{{ r.label }} <span class="muted small">+{{ r.weight }}</span></li>{% endfor %}</ul>
     偏好分乘以 {{ selection.scoring.preference_weight }} 后加到最终分（上限 +{{ selection.scoring.preference_cap }}）。未命中任何偏好的领域内内容照常收录。</li>
+  <li><b>期刊等级与影响因子</b>：<code>config/journals.yaml</code> 把期刊分为 CNS / 大子刊 / 综合顶刊 / 领域顶刊 / 普通 / 高发文量 OA 刊，分别加权 +12 / +8 / +6 / +4 / 0 / −3；影响因子为{{ IF_SOURCE }}，未收录期刊显示「IF 未收录」且不加减分。顶刊单独有 <a href="/top">顶刊</a> 页、<code>/feed/top.xml</code> 与专门的 PubMed / Crossref 来源。</li>
   <li><b>评分与入选</b>：模型按新颖性、严谨性、领域影响、领域相关、转化价值五个维度评 0-100，加偏好与来源等级修正得最终分；入选阈值按来源等级为 {{ selection.scoring.select_threshold }}。</li>
   <li><b>文献解读</b>：最终分 ≥ {{ selection.interpret.auto_min_score }} 的文献自动生成结构化中文解读（背景 / 设计 / 发现 / 多组学视角 / 意义 / 局限 / 术语），其余可在条目页按需生成。</li>
   <li><b>事件与热度</b>：近 {{ selection.cluster.window_days }} 天内相关条目聚为事件；热度按独立来源计（48 小时内每来源一次，24 小时减半），同一媒体多次报道不重复计热。</li>

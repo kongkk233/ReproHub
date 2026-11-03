@@ -22,6 +22,9 @@ scoring:
   select_threshold: { 1: 60, 2: 62, 3: 68 }
   # 不同条目类型的阈值偏移
   kind_adjust: { paper: 0, preprint: 2, guideline: -5, news: 5, post: 8, other: 10 }
+  # 期刊等级加权（config/journals.yaml → tiers.*.boost）：CNS +12、大子刊 +8、综合顶刊 +6、领域顶刊 +4、高发文量 OA 刊 -3
+  journal_boost_enabled: true
+  journal_boost_cap: 12
   # 有真实提供商时，自动把仍是「模拟评分」的条目重评（已入选、偏好高、新发表优先）；每轮上限与回溯天数
   upgrade_mock: true
   upgrade_mock_limit: 300

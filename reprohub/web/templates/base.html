@@ -15,7 +15,7 @@
   <a class="title" href="/"><h1>{{ site.name_zh }} <span class="muted small">{{ site.name }}</span></h1></a>
   <p class="tagline">{{ site.tagline }}</p>
   <nav>
-    {% set nav = [("/", "精选"), ("/all", "全部"), ("/papers", "文献"), ("/news", "资讯"), ("/stories", "热点"), ("/editions", "日报"), ("/topics", "主题"), ("/library", "阅读")] %}
+    {% set nav = [("/", "精选"), ("/top", "顶刊"), ("/all", "全部"), ("/papers", "文献"), ("/news", "资讯"), ("/stories", "热点"), ("/editions", "日报"), ("/topics", "主题"), ("/library", "阅读")] %}
     {% for href, label in nav %}<a href="{{ href }}" {% if path == href or (href != '/' and path.startswith(href)) %}class="active"{% endif %}>{{ label }}</a>{% endfor %}
     <span class="sep">|</span>
     <a href="/sources">来源</a><a href="/search">搜索</a><a href="/about">关于</a>

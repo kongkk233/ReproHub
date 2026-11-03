@@ -43,7 +43,9 @@ def _entry(settings, it: dict) -> dict:
     base = settings.site_info.get("base_url", "")
     mock = "【模拟评分】" if it.get("llm_is_mock") else ""
     t = it.get("title_zh") or it["title"]
-    desc_parts = [f"{mock}评分 {it.get('final_score')} · {it.get('source_name')}" + (f" · {it.get('journal')}" if it.get("journal") else "")]
+    jt = {"cns": "CNS", "cns-sub": "大子刊", "general-top": "综合顶刊", "field-top": "领域顶刊"}.get(it.get("journal_tier") or "", "")
+    jinfo = (f" · {it.get('journal')}" if it.get("journal") else "") + (f"【{jt}】" if jt else "") + (f" IF {it['journal_if']}" if it.get("journal_if") else "")
+    desc_parts = [f"{mock}评分 {it.get('final_score')} · {it.get('source_name')}{jinfo}"]
     if it.get("title_zh"):
         desc_parts.append(it["title"])
     if it.get("preference_labels"):
@@ -88,6 +90,11 @@ def feed_papers(request: Request):
 @router.get("/feed/news.xml")
 def feed_news(request: Request):
     return _items_feed(request, "资讯", selected=True, kinds=["news", "post", "other"], order="fetched")
+
+
+@router.get("/feed/top.xml")
+def feed_top(request: Request):
+    return _items_feed(request, "顶刊", status="scored", journal_tiers=["cns", "cns-sub", "general-top", "field-top"], order="fetched")
 
 
 @router.get("/feed/preference.xml")

@@ -21,6 +21,8 @@ GET {{ base }}/api/v1/search?q=blastocyst%20proteome
 GET {{ base }}/api/v1/stories?days=7
 GET {{ base }}/api/v1/editions?kind=daily
 GET {{ base }}/api/v1/editions/daily/2026-11-02
+GET {{ base }}/api/v1/items?tier=top&amp;order=if    # 顶刊（cns,cns-sub,general-top,field-top），按影响因子排序
+GET {{ base }}/api/v1/journals                    # 期刊等级统计与注册表信息
 GET {{ base }}/api/v1/topics
 GET {{ base }}/api/v1/sources</code></pre>
 <p class="small">每条结果都带 <code>is_mock</code>：为 true 表示该评分/解读由规则占位生成，未调用模型。</p>

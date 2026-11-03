@@ -6,6 +6,7 @@ import sqlite3
 from typing import Callable
 
 from .. import repo
+from ..journals import JournalRegistry
 from ..llm import LLM, LLMError
 from ..settings import Settings
 from ..textutil import clamp, now_iso, parse_iso, truncate
@@ -100,7 +101,12 @@ def score_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: dict)
     tier = int(it.get("source_tier") or 3)
     pref_boost = min(float(it.get("preference_score") or 0) * float(sc.get("preference_weight", 1.0)), float(sc.get("preference_cap", 25)))
     tier_adj = float((sc.get("tier_adjust") or {}).get(tier, 0))
-    final = round(clamp(llm_score + pref_boost + tier_adj, 0, 100), 1)
+    registry = JournalRegistry(settings, conn)
+    jfields = registry.item_fields(it.get("journal"), (it.get("extra") or {}).get("issn"))
+    if it.get("journal_tier") and it["journal_tier"] != "unknown":   # 已标注过就不改写
+        jfields = {"journal_key": it.get("journal_key"), "journal_tier": it.get("journal_tier"), "journal_if": it.get("journal_if")}
+    journal_boost = registry.boost_for(jfields.get("journal_tier"))
+    final = round(clamp(llm_score + pref_boost + tier_adj + journal_boost, 0, 100), 1)
     threshold = float((sc.get("select_threshold") or {}).get(tier, 65)) + float((sc.get("kind_adjust") or {}).get(it.get("kind"), 0))
     selected = final >= threshold
     fields: dict = {
@@ -117,6 +123,7 @@ def score_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: dict)
         "llm_is_mock": resp.is_mock,
         "llm_effort": resp.effort,
         "scored_at": now_iso(),
+        **jfields,
     }
     if data.get("title_zh"):
         fields["title_zh"] = str(data["title_zh"]).strip()
@@ -129,6 +136,7 @@ def score_item(settings: Settings, conn: sqlite3.Connection, llm: LLM, it: dict)
     extra["kind_hint"] = data.get("kind_hint")
     extra["threshold"] = threshold
     extra["pref_boost"] = pref_boost
+    extra["journal_boost"] = journal_boost
     if disagreement is not None:
         extra["score_disagreement"] = round(disagreement, 1)
         extra["score_disputed"] = disagreement >= float(sc.get("disagreement_flag", 20))

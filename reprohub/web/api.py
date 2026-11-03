@@ -30,8 +30,8 @@ def _public_item(it: dict, *, full: bool = False) -> dict:
     keys = [
         "id", "title", "title_zh", "url", "doi", "pmid", "journal", "kind", "lang", "published_at", "fetched_at", "authors",
         "primary_topic", "topics", "topic_score", "preference_score", "preference_labels", "llm_score", "final_score", "score_dims",
-        "recommend_reason", "keywords", "selected", "story_id", "llm_provider", "llm_model", "source_key", "source_name", "source_tier",
-        "mention_count", "has_interpretation",
+        "recommend_reason", "keywords", "selected", "story_id", "llm_provider", "llm_model", "llm_effort", "source_key", "source_name", "source_tier",
+        "mention_count", "has_interpretation", "journal_key", "journal_tier", "journal_if",
     ]
     d = {k: it.get(k) for k in keys}
     d["is_mock"] = bool(it.get("llm_is_mock"))
@@ -68,11 +68,16 @@ def topics(request: Request):
 
 @router.get("/items")
 def items(request: Request, selected: int | None = None, kind: str | None = None, topic: str | None = None, source: str | None = None, q: str | None = None,
-          min_score: float | None = None, min_preference: float | None = None, days: int | None = None, order: str = "date", page: int = 1, page_size: int = 30, status: str | None = "scored"):
+          min_score: float | None = None, min_preference: float | None = None, days: int | None = None, order: str = "date", page: int = 1, page_size: int = 30, status: str | None = "scored",
+          tier: str | None = None):
+    """tier: 逗号分隔的期刊等级（cns,cns-sub,general-top,field-top,standard,low-signal,unknown），或 top=前四者。"""
     conn = get_conn(_s(request))
     since = (now_utc() - timedelta(days=days)).isoformat(timespec="seconds") if days else None
+    tiers = None
+    if tier:
+        tiers = ["cns", "cns-sub", "general-top", "field-top"] if tier == "top" else [t.strip() for t in tier.split(",") if t.strip()]
     rows, total = repo.list_items(conn, selected=(bool(selected) if selected is not None else None), status=status or None, kind=kind, topic=topic, source_key=source, q=q,
-                                  min_score=min_score, min_preference=min_preference, since=since, order=order, page=max(1, page), page_size=min(200, max(1, page_size)))
+                                  min_score=min_score, min_preference=min_preference, since=since, order=order, page=max(1, page), page_size=min(200, max(1, page_size)), journal_tiers=tiers)
     return {"total": total, "page": page, "page_size": page_size, "items": [_public_item(r) for r in rows]}
 
 
@@ -146,6 +151,17 @@ def edition(request: Request, kind: str, key: str):
         raise HTTPException(404)
     ed["is_mock"] = bool(ed["is_mock"])
     return ed
+
+
+@router.get("/journals")
+def journals(request: Request):
+    """期刊等级统计、顶刊列表与注册表元信息。"""
+    from ..journals import JournalRegistry, journal_stats
+
+    settings = _s(request)
+    st = journal_stats(get_conn(settings), settings)
+    st["tiers"] = JournalRegistry(settings).tiers
+    return st
 
 
 @router.get("/sources")

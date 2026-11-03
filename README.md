@@ -15,6 +15,7 @@
 | **聚合** | PubMed E-utilities、Europe PMC（含预印本）、bioRxiv/medRxiv、Crossref（核心期刊 ISSN）、期刊/媒体 RSS、通用 JSON API、HTML 列表页、API 推送入库。按 DOI / PMID / URL / 标题指纹去重；同一篇被多源收录只保留一条并记录「另外 N 个来源也收录」。 |
 | **领域门槛** | 22 个主题覆盖生殖与辅助生殖全领域（早期胚胎、卵母细胞、精子/男性、ART 临床、PGT、胚胎实验室、内膜与植入、生殖内分泌、生殖遗传、生殖干细胞/IVG、早孕与流产、生育力保存、生殖免疫、微生物组、避孕与生殖健康、生殖毒理、生殖衰老、AI、伦理法规、产业政策、动物模型、多组学方法）。**属于该领域是收录门槛**；横切主题（组学方法 / AI / 动物模型）单独命中不算在领域内。 |
 | **重点偏好（只加权）** | 早期胚胎转录组 + 蛋白质组联合分析、胚胎/卵母细胞蛋白质组、胚胎单细胞转录组、多组学整合、母源-合子转换、人类胚胎材料、胚胎表观组、干细胞胚胎模型、可转化到 ART 实验室的发现。命中后加分提升排序与入选概率，**不是收录条件**，未命中的领域内内容照常收录。 |
+| **期刊等级与影响因子** | `config/journals.yaml` 注册表（125 种，ISSN / 别名 / 正则匹配）把期刊分为 **CNS / 大子刊 / 综合顶刊 / 领域顶刊 / 普通 / 高发文量 OA 刊**，分别加权 +12 / +8 / +6 / +4 / 0 / −3 进入最终分；每条标注影响因子（近似 JCR 值，明确标注来源，可改、可 CSV 导入覆盖；未收录显示「IF 未收录」且不加减分）。专门的 PubMed（限定 40 余种顶刊 [ta]）与 Crossref（22 个顶刊 ISSN）来源保证 CNS/大子刊的生殖相关文章能被抓到；`/top` 页、`tier=` 筛选、按 IF 排序、`/feed/top.xml`、`top-journal-alert` 推送规则。 |
 | **评分与入选** | 模型按新颖性 / 严谨性 / 领域影响 / 领域相关 / 转化价值五维评分 0-100，加偏好与来源等级修正得最终分；入选阈值按来源等级（期刊一手 60 / 学会机构 62 / 媒体 68）与类型微调。可选「评两次取均值并标记分歧」。 |
 | **文献解读** | 高分文献自动生成结构化中文解读：一句话结论 / 背景 / 设计与方法 / 主要发现 / 多组学视角 / 意义 / 局限 / 值得跟进 / 关键术语；其余在条目页一键按需生成。 |
 | **事件与热度** | 近 14 天相关条目聚为事件（标题/摘要 Jaccard + 模型确认灰区）；热度按**独立来源**计（48 小时内每来源一次，24 小时减半，按来源等级加权），同一媒体多次报道不重复计热。 |
@@ -80,6 +81,8 @@ reprohub llm set --provider P --model M --effort E                   保存运�
 reprohub llm clear                 清除运行时覆盖
 reprohub llm cache [--clear] [--task T]   模型输出缓存统计/清理
 reprohub upgrade [--limit N]       用真实模型重评仍是模拟评分的条目
+reprohub journals stats|unknown|annotate|import <csv>|resolve <name>   期刊等级与 IF
+reprohub rescore                   只用已存的模型分+偏好+来源等级+期刊等级重算最终分（不调模型）
 reprohub llm models [--provider P] 列出已知模型与端点返回的模型
 reprohub --provider x666 --effort high edition weekly                任意命令前加全局标志 = 本次临时覆盖
 reprohub demo-seed                 写入离线演示样例
@@ -98,6 +101,7 @@ config/
   site.yaml          站点、版次时间、调度、LLM 提供商表
   models.yaml        每个步骤的提供商/模型/温度
   taxonomy.yaml      22 个主题及关键词（领域门槛）
+  journals.yaml      期刊等级（CNS/大子刊/顶刊…）与影响因子注册表
   preferences.yaml   重点偏好规则（只加权）
   selection.yaml     阈值：门槛、评分、入选、解读、聚类、清理
   sources.yaml       数据源
@@ -111,7 +115,7 @@ reprohub/
   push/        channels（10 种渠道）  dispatcher（规则）
   web/         app.py  views.py  api.py  feeds.py  templates/  static/
   scheduler.py  cli.py  demo.py
-tests/         pytest，离线（54 个用例）
+tests/         pytest，离线（58 个用例）
 data/          SQLite、推送 outbox（git 忽略）
 ```
 
@@ -146,6 +150,13 @@ data/          SQLite、推送 outbox（git 忽略）
 `config/sources.yaml` 一条即可。字段：`type`（pubmed / europepmc / biorxiv / crossref / rss / jsonapi / html_list / push）、`tier`（1 一手 / 2 机构 / 3 媒体）、`kind`、`in_scope_default`（来源本身即领域内）、`scope_filter`（综合性来源入库前先过领域门槛）、`interval_minutes`、`params`。
 微信公众号等可经 RSSHub 转为 RSS：设置 `RSSHUB_BASE`，在 `params.url` 中用 `${RSSHUB_BASE}/...`。
 
+### 期刊等级与影响因子
+
+- 注册表 [config/journals.yaml](config/journals.yaml)：`tiers` 定义等级与加分，`journals` 列出期刊（`name`、`aliases`（PubMed ISO 缩写 + 全名）、`issn`、`tier`、`if`），`patterns` 给未列出的 Nature/Cell/Lancet 系刊兜底等级。
+- 影响因子是人工整理的近似 JCR 2023 值，页面和 API 都注明来源；要用精确/最新 JCR，把 Clarivate 导出的表整理成 `name,issn,if,tier,year` 的 CSV，`reprohub journals import if.csv` 后 `reprohub journals annotate` 回填并重算最终分。
+- `reprohub journals unknown` 列出高频未收录期刊，便于补充。
+- 等级只影响排序与入选阈值（CNS +12 … OA 刊 −3），不是收录条件；`selection.yaml → scoring.journal_boost_enabled/cap` 可关闭或封顶。
+
 ### 调阈值
 
 `config/selection.yaml`：`scope.min_topic_score`（领域门槛）、`scoring.select_threshold`（入选）、`scoring.preference_weight / preference_cap`（偏好权重）、`interpret.auto_min_score`（自动解读）、`cluster.*`（聚类与热度）。
@@ -168,6 +179,8 @@ GET  /api/v1/status                         LLM 模式、计数、渠道
 GET  /api/v1/items?selected=1&days=7&topic=early-embryo&order=score
 GET  /api/v1/items/{id}                     含 interpretation.markdown 与 is_mock
 GET  /api/v1/search?q=...                   FTS5 trigram，中英文子串
+GET  /api/v1/items?tier=top&order=if        顶刊（cns,cns-sub,general-top,field-top），按 IF 排序
+GET  /api/v1/journals                       期刊等级统计与注册表信息
 GET  /api/v1/stories  /api/v1/editions  /api/v1/topics  /api/v1/sources
 POST /api/v1/reading/{id}                   {"status":"read","starred":true,"tags":[],"notes":"","rating":5}
 POST /api/v1/items/{id}/interpret
@@ -180,7 +193,7 @@ DELETE /api/v1/llm/override
 POST /api/v1/llm/test                       {"provider":"deepseek","effort":"off"}  真实试调一次
 ```
 
-RSS：`/feed.xml` `/feed/all.xml` `/feed/papers.xml` `/feed/news.xml` `/feed/preference.xml` `/feed/topic/<slug>.xml` `/feed/editions.xml`。
+RSS：`/feed.xml` `/feed/top.xml` `/feed/all.xml` `/feed/papers.xml` `/feed/news.xml` `/feed/preference.xml` `/feed/topic/<slug>.xml` `/feed/editions.xml`。
 
 ---
 

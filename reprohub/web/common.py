@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -57,11 +58,34 @@ def rel_date(iso: str | None, tz) -> str:
     return f"{d.year}年{d.month}月{d.day}日"
 
 
-def _token(pw: str) -> str:
-    return hashlib.sha256(f"reprohub:{pw}".encode()).hexdigest()
+COOKIE_MAX_AGE = 60 * 60 * 24 * 30
+_PROXY_HEADERS = ("x-forwarded-for", "x-real-ip", "forwarded")
+
+
+def _sign(settings: Settings, payload: str) -> str:
+    # 密钥同时绑定口令：改口令即作废所有旧会话
+    key = f"{settings.secret_key}:{settings.env('ADMIN_PASSWORD')}".encode()
+    return hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
+
+
+def make_session_token(settings: Settings, now: float | None = None) -> str:
+    exp = int((now or time.time()) + COOKIE_MAX_AGE)
+    return f"{exp}.{_sign(settings, str(exp))}"
+
+
+def verify_session_token(settings: Settings, token: str, now: float | None = None) -> bool:
+    exp, _, sig = (token or "").partition(".")
+    if not exp.isdigit() or not sig:
+        return False
+    if int(exp) < (now or time.time()):
+        return False
+    return hmac.compare_digest(sig, _sign(settings, exp))
 
 
 def is_loopback(request: Request) -> bool:
+    """真正的本机直连。经反向代理转发的请求（带代理头）一律不算本机。"""
+    if any(h in request.headers for h in _PROXY_HEADERS):
+        return False
     host = (request.client.host if request.client else "") or ""
     return host in ("127.0.0.1", "::1", "localhost", "testclient")
 
@@ -71,10 +95,15 @@ def is_owner(request: Request, settings: Settings | None = None) -> bool:
     pw = settings.env("ADMIN_PASSWORD")
     if not pw:
         return is_loopback(request)
-    expected = _token(pw)
-    cookie = request.cookies.get(COOKIE, "")
     header = request.headers.get("x-admin-token", "")
-    return hmac.compare_digest(cookie, expected) or hmac.compare_digest(header, pw) or hmac.compare_digest(header, expected)
+    if header and hmac.compare_digest(header, pw):
+        return True
+    return verify_session_token(settings, request.cookies.get(COOKIE, ""))
+
+
+def is_https(request: Request) -> bool:
+    proto = request.headers.get("x-forwarded-proto", "") or request.url.scheme
+    return proto.split(",")[0].strip() == "https"
 
 
 def require_owner(request: Request) -> None:
@@ -83,7 +112,7 @@ def require_owner(request: Request) -> None:
 
 
 def login_cookie_value(settings: Settings) -> str:
-    return _token(settings.env("ADMIN_PASSWORD"))
+    return make_session_token(settings)
 
 
 def build_templates(settings: Settings) -> Jinja2Templates:

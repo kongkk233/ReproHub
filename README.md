@@ -60,6 +60,8 @@ python -m reprohub serve --scheduler
 
 安装为命令：`pip install -e .` 后可直接 `reprohub <command>`。
 
+部署到 VPS（Caddy + systemd + HTTPS、本地 / GitHub / 服务器同步、备份）：见 [deploy/DEPLOY.md](deploy/DEPLOY.md)。
+
 ---
 
 ## 命令

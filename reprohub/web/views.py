@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import hmac
 import io
 import json
 from datetime import timedelta
@@ -24,7 +25,7 @@ from ..push import channel_status, test_channel
 from ..push.dispatcher import push_edition
 from ..settings import get_settings
 from ..textutil import now_utc
-from .common import COOKIE, EDITION_LABEL, KIND_LABEL, ctx, is_owner, login_cookie_value, qp_int, require_owner
+from .common import COOKIE, COOKIE_MAX_AGE, EDITION_LABEL, KIND_LABEL, ctx, is_https, is_owner, login_cookie_value, qp_int, require_owner
 
 router = APIRouter()
 
@@ -439,10 +440,16 @@ def login(request: Request, password: str = Form("")):
     pw = settings.env("ADMIN_PASSWORD")
     if not pw:
         return RedirectResponse("/admin", status_code=303)
-    if password != pw:
+    if not hmac.compare_digest(password.encode(), pw.encode()):
         return _render(request, "login.html", title="登录", error="口令错误")
-    resp = RedirectResponse(request.query_params.get("next") or "/admin", status_code=303)
-    resp.set_cookie(COOKIE, login_cookie_value(settings), httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30)
+    nxt = request.query_params.get("next") or "/admin"
+    if not nxt.startswith("/") or nxt.startswith("//") or "\\" in nxt:  # 防开放重定向
+        nxt = "/admin"
+    resp = RedirectResponse(nxt, status_code=303)
+    resp.set_cookie(
+        COOKIE, login_cookie_value(settings), httponly=True, samesite="lax",
+        secure=is_https(request), max_age=COOKIE_MAX_AGE,
+    )
     return resp
 
 

@@ -115,7 +115,31 @@ class Settings:
 
     @property
     def site_info(self) -> dict:
-        return self.site.get("site", {})
+        info = dict(self.site.get("site", {}))
+        # 部署时用环境变量覆盖对外地址（RSS / 链接用），无需改 site.yaml
+        base = self.env("SITE_BASE_URL")
+        if base:
+            info["base_url"] = base.rstrip("/")
+        return info
+
+    @functools.cached_property
+    def secret_key(self) -> str:
+        """会话签名密钥：优先 SECRET_KEY，否则在数据目录生成并持久化一个随机值。"""
+        key = self.env("SECRET_KEY")
+        if key:
+            return key
+        p = self.data_dir / ".secret_key"
+        if p.exists():
+            return p.read_text(encoding="utf-8").strip()
+        import secrets
+
+        key = secrets.token_hex(32)
+        p.write_text(key, encoding="utf-8")
+        try:
+            p.chmod(0o600)
+        except OSError:
+            pass
+        return key
 
     @property
     def topics(self) -> list[dict]:

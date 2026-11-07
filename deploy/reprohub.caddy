@@ -1,0 +1,19 @@
+# Caddy 站点：自动申请/续期 HTTPS 证书，反代到本机 8008。
+# 安装：sudo cp deploy/reprohub.caddy /etc/caddy/sites/ && 在 /etc/caddy/Caddyfile 加
+#   import /etc/caddy/sites/reprohub.caddy
+# 然后 sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# Caddy 会自动带上 X-Forwarded-For / X-Forwarded-Proto，应用据此判断「非本机」与 HTTPS。
+reprohub.ninthflux.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8008 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

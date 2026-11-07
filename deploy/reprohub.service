@@ -1,0 +1,22 @@
+# systemd 单元：网站 + 后台调度（同一进程，只能单 worker，否则调度会重复执行）
+# 安装：sudo cp deploy/reprohub.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now reprohub
+[Unit]
+Description=ReproHub (web + scheduler)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/ReproHub
+# .env 由应用自己读取（settings.load_dotenv），这里不重复 EnvironmentFile
+ExecStart=/home/ubuntu/ReproHub/.venv/bin/python -m reprohub serve --scheduler --host 127.0.0.1 --port 8008
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

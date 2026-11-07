@@ -84,3 +84,28 @@ def test_admin_requires_owner_when_password_set(settings, seeded, monkeypatch):
     r = c.post("/login", data={"password": "pw"}, follow_redirects=False)
     assert r.status_code == 303 and "rh_auth" in r.headers.get("set-cookie", "")
     assert c.get("/admin").status_code == 200
+
+
+def test_proxied_requests_are_not_owner_without_password(client):
+    # 经反向代理转发（带 X-Forwarded-For）的请求即使来自 127.0.0.1 也不是本机管理员
+    r = client.post("/api/v1/reading/1", json={"status": "read"}, headers={"X-Forwarded-For": "203.0.113.9"})
+    assert r.status_code == 401
+
+
+def test_session_cookie_is_signed_and_expires(settings, seeded, monkeypatch):
+    from reprohub.web.common import make_session_token, verify_session_token
+
+    monkeypatch.setenv("ADMIN_PASSWORD", "pw")
+    tok = make_session_token(settings, now=1000)
+    assert verify_session_token(settings, tok, now=1001)
+    assert not verify_session_token(settings, tok, now=10**10)  # 过期
+    assert not verify_session_token(settings, tok[:-1] + ("0" if tok[-1] != "0" else "1"), now=1001)  # 篡改
+    monkeypatch.setenv("ADMIN_PASSWORD", "pw2")
+    assert not verify_session_token(settings, tok, now=1001)  # 改口令即作废
+
+
+def test_login_rejects_open_redirect(settings, seeded, monkeypatch):
+    monkeypatch.setenv("ADMIN_PASSWORD", "pw")
+    c = TestClient(create_app(settings))
+    r = c.post("/login?next=//evil.example", data={"password": "pw"}, follow_redirects=False)
+    assert r.headers["location"] == "/admin"

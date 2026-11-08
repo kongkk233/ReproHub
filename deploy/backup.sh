@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SQLite 在线一致性备份（WAL 安全），保留最近 14 份。
-# cron 示例：15 3 * * * /home/ubuntu/ReproHub/deploy/backup.sh >> /home/ubuntu/ReproHub/data/backup.log 2>&1
+# 由 deploy/reprohub-backup.timer 每日调用；也可手动执行
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="${REPROHUB_DATA_DIR:-$ROOT/data}"

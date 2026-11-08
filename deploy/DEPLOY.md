@@ -41,7 +41,8 @@ sudo systemctl daemon-reload && sudo systemctl enable --now reprohub
 sudo cp deploy/reprohub.caddy /etc/caddy/sites/reprohub.caddy
 grep -q reprohub.caddy /etc/caddy/Caddyfile || echo 'import /etc/caddy/sites/reprohub.caddy' | sudo tee -a /etc/caddy/Caddyfile
 sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && sudo systemctl reload caddy
-(crontab -l 2>/dev/null; echo '15 3 * * * $HOME/ReproHub/deploy/backup.sh >> $HOME/ReproHub/data/backup.log 2>&1') | crontab -
+sudo cp deploy/reprohub-backup.service deploy/reprohub-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now reprohub-backup.timer   # 每日 03:15 备份到 data/backups/
 ```
 
 DNS：Cloudflare 上 `reprohub` A 记录指向 VPS IP（仅 DNS，不走代理，便于 Caddy 签证书）。

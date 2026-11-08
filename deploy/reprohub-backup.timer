@@ -1,0 +1,10 @@
+# 每天 03:15 备份数据库（保留 14 份，见 backup.sh）
+[Unit]
+Description=Daily ReproHub backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

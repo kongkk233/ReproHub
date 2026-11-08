@@ -1,0 +1,7 @@
+[Unit]
+Description=ReproHub SQLite backup
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/home/ubuntu/ReproHub/deploy/backup.sh

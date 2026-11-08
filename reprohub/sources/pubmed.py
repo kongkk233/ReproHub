@@ -16,14 +16,28 @@ def _text(el) -> str:
     return strip_html("".join(el.itertext())) if el is not None else ""
 
 
-def _pubdate(article) -> datetime | None:
-    # 优先电子出版日期
-    ad = article.find(".//ArticleDate")
-    if ad is not None:
-        try:
-            return datetime(int(ad.findtext("Year")), int(ad.findtext("Month")), int(ad.findtext("Day")), tzinfo=timezone.utc)
-        except (TypeError, ValueError):
-            pass
+def _ymd(el) -> datetime | None:
+    if el is None:
+        return None
+    try:
+        return datetime(int(el.findtext("Year")), int(el.findtext("Month")), int(el.findtext("Day")), tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _pubdate(article, record=None) -> datetime | None:
+    """发表日期：电子出版日期 > PubMed 收录日期 > 期刊当期日期。
+
+    当期 PubDate 是封面日期，经常在未来（提前登记的下一期），只作最后兜底。
+    """
+    dt = _ymd(article.find(".//ArticleDate"))
+    if dt:
+        return dt
+    if record is not None:
+        for status in ("pubmed", "entrez"):
+            dt = _ymd(record.find(f".//PubmedData/History/PubMedPubDate[@PubStatus='{status}']"))
+            if dt:
+                return dt
     pd = article.find(".//Journal/JournalIssue/PubDate")
     if pd is None:
         return None
@@ -122,7 +136,7 @@ class PubMedFetcher(BaseFetcher):
                     pmid=pmid,
                     authors=authors,
                     journal=journal,
-                    published_at=_pubdate(art),
+                    published_at=_pubdate(art, pa),
                     kind=kind,
                     extra={"pub_types": pub_types, "issn": issn},
                 )

@@ -31,6 +31,26 @@ RSS_XML = b"""<?xml version="1.0"?><rss version="2.0" xmlns:dc="http://purl.org/
 </channel></rss>"""
 
 
+PUBMED_ISSUE_ONLY_XML = b"""<?xml version="1.0"?>
+<PubmedArticleSet><PubmedArticle>
+ <MedlineCitation><PMID>40000002</PMID>
+  <Article><Journal><ISOAbbreviation>Zhonghua Yi Xue Yi Chuan Xue Za Zhi</ISOAbbreviation>
+   <JournalIssue><PubDate><Year>2026</Year><Month>Nov</Month><Day>10</Day></PubDate></JournalIssue></Journal>
+   <ArticleTitle>Predictive value of maternal age for euploid blastocysts</ArticleTitle></Article>
+ </MedlineCitation>
+ <PubmedData><History>
+  <PubMedPubDate PubStatus="received"><Year>2026</Year><Month>8</Month><Day>9</Day></PubMedPubDate>
+  <PubMedPubDate PubStatus="pubmed"><Year>2026</Year><Month>11</Month><Day>7</Day></PubMedPubDate>
+ </History></PubmedData>
+</PubmedArticle></PubmedArticleSet>"""
+
+
+def test_pubmed_prefers_pubmed_date_over_future_issue_date(settings):
+    f = PubMedFetcher({"key": "pubmed-x", "params": {}}, settings)
+    it = f._parse(PUBMED_ISSUE_ONLY_XML)[0]
+    assert it.published_at == datetime(2026, 11, 7, tzinfo=timezone.utc)
+
+
 def test_pubmed_xml_parsing(settings):
     f = PubMedFetcher({"key": "pubmed-x", "params": {}}, settings)
     items = f._parse(PUBMED_XML)

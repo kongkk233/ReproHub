@@ -16,6 +16,7 @@ from .classify import Classifier
 
 log = logging.getLogger("reprohub.collect")
 Logger = Callable[[str], None]
+FUTURE_TOLERANCE = timedelta(hours=1)
 
 
 def normalize(raw: RawItem, src_cfg: dict, classifier: Classifier, registry: JournalRegistry | None = None) -> dict | None:
@@ -34,8 +35,11 @@ def normalize(raw: RawItem, src_cfg: dict, classifier: Classifier, registry: Jou
     extra["matched_keywords"] = cls.matched_keywords
     extra["preference_keys"] = cls.preference_keys
     published = raw.published_at
-    # 期刊「当期」日期可能是未来的印刷日期，会把条目顶到列表最前；超过 2 天的未来日期视为未知
-    if published and published.tzinfo and published > datetime.now(timezone.utc) + timedelta(days=2):
+    if published and published.tzinfo is None:
+        published = published.replace(tzinfo=timezone.utc)
+    # 期刊「当期」日期常是未来的封面/印刷日期，会让首页出现「明天、后天」的分组；
+    # 晚于当前时间（容差 FUTURE_TOLERANCE）的日期一律视为未知，列表退回用采集时间，原值留在 extra
+    if published and published > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
         extra["published_at_original"] = to_iso(published)
         published = None
     jfields = registry.item_fields(raw.journal, (raw.extra or {}).get("issn")) if registry else {}
@@ -115,6 +119,9 @@ def collect(
     logger: Logger = log.info,
 ) -> dict:
     repo.sync_sources(conn, settings)
+    fixed = repo.clear_future_dates(conn, FUTURE_TOLERANCE)
+    if fixed:
+        logger(f"已把 {fixed} 条未来发表日期（期刊封面日期等）改为未知")
     classifier = Classifier(settings)
     registry = JournalRegistry(settings, conn)
     now = datetime.now(timezone.utc)

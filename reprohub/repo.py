@@ -304,6 +304,25 @@ def purge_rejected(conn: sqlite3.Connection, days: int) -> int:
     return cur.rowcount
 
 
+def clear_future_dates(conn: sqlite3.Connection, tolerance: timedelta) -> int:
+    """把库里晚于当前时间的 published_at 置空（原值存入 extra.published_at_original）。
+
+    日期随时间流逝会变成「过去」，但条目一旦入库就按旧规则存着；采集前调用一次即可修复历史数据。
+    """
+    cutoff = (now_utc() + tolerance).isoformat(timespec="seconds")
+    rows = conn.execute("SELECT id, published_at, extra FROM items WHERE published_at > ?", (cutoff,)).fetchall()
+    for r in rows:
+        try:
+            extra = json.loads(r["extra"] or "{}")
+        except ValueError:
+            extra = {}
+        extra.setdefault("published_at_original", r["published_at"])
+        conn.execute("UPDATE items SET published_at=NULL, extra=? WHERE id=?", (json.dumps(extra, ensure_ascii=False), r["id"]))
+    if rows:
+        conn.commit()
+    return len(rows)
+
+
 def date_groups(conn: sqlite3.Connection, items: list[dict], tz) -> list[dict]:
     """把条目按本地日期分组，供列表页显示。"""
     groups: dict[str, dict] = {}

@@ -132,3 +132,28 @@ def test_collect_survives_source_errors(settings, conn, no_network):
     assert s["sources"] == 1 and len(s["errors"]) == 1
     src = repo.get_source(conn, "rss-fertstert")
     assert src["last_status"] == "error" and src["last_error"]
+
+
+def test_future_issue_date_is_not_used_as_published(settings, conn):
+    # 期刊当期封面日期在未来（哪怕只超前一两天）不能当作发表日期，否则首页会出现「后天」的分组
+    from datetime import timedelta
+
+    future = datetime.now(timezone.utc) + timedelta(days=1, hours=20)
+    raw = RawItem(url="https://example.org/future", title="Euploid blastocyst rate and maternal age in PGT-A", summary="PGT-A cycles.", published_at=future)
+    iid, st = ingest_item(conn, settings, "demo", raw)
+    it = repo.get_item(conn, iid)
+    assert st == "new" and it["published_at"] is None
+    assert it["extra"]["published_at_original"].startswith(future.date().isoformat())
+
+
+def test_clear_future_dates_repairs_existing_rows(settings, conn):
+    from datetime import timedelta
+
+    raw = RawItem(url="https://example.org/f2", title="Oocyte proteome in ART", summary="oocyte", published_at=datetime(2020, 1, 1, tzinfo=timezone.utc))
+    iid, _ = ingest_item(conn, settings, "demo", raw)
+    future = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(timespec="seconds")
+    conn.execute("UPDATE items SET published_at=? WHERE id=?", (future, iid))
+    assert repo.clear_future_dates(conn, timedelta(hours=1)) == 1
+    it = repo.get_item(conn, iid)
+    assert it["published_at"] is None and it["extra"]["published_at_original"] == future
+    assert repo.clear_future_dates(conn, timedelta(hours=1)) == 0
